@@ -12,9 +12,11 @@ ez::Drive chassis(
     {-18, 15, -11, 13},  // Right Chassis Ports (negative port will reverse it!)
 
     21,      // IMU Port
-    4.125,   // Wheel Diameter (Remember, 4" wheels without screw holes are actually 4.125!)
-    420.0);  // Wheel RPM = cartridge * (motor gear / wheel gear)
+    3.25,   // Wheel Diameter (Remember, 4" wheels without screw holes are actually 4.125!)
+    200); 
+    //old code: 420.0);  // Wheel RPM = cartridge * (motor gear / wheel gear) calculation: 200/ 1:1 gear ratio - the gear on the drive chasis is the same radius as the gear
 
+    
 // Uncomment the trackers you're using here!
 // - `8` and `9` are smart ports (making these negative will reverse the sensor)
 //  - you should get positive values on the encoders going FORWARD and RIGHT
