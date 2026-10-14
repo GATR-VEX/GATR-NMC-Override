@@ -12,14 +12,12 @@ namespace drivetrain {
 
     enum class WantedState {
         TELEOP_DRIVE,
-        HEADING_LOCK,
         DRIVE_TO_POINT,
         IDLE
     };
 
     enum class SystemState {
         TELEOP_DRIVE,
-        HOLDING_HEADING,
         DTP_ALIGNING,
         DTP_ALIGNED,
         IDLE
@@ -39,6 +37,5 @@ namespace drivetrain {
     bool isIMUCalibrating();
     bool isIMUCalibrated();
 
-    void setTargetHeading(double degrees);
     void setTargetPosition(double x, double y);
 }
