@@ -24,6 +24,8 @@ namespace drivetrain {
     };
 
     void initialize();
+    void prepareTeleop();
+    void prepareAutonomous();
     void periodic();
 
     void setWantedState(WantedState state);
@@ -38,4 +40,7 @@ namespace drivetrain {
     bool isIMUCalibrated();
 
     void setTargetPosition(double x, double y);
+
+    void updatePID();
+    void printDebugScreen();
 }

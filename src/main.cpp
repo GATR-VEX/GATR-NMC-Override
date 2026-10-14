@@ -12,10 +12,9 @@ void initialize() {
   ez::ez_template_print();
 
   pros::delay(500);  // Stop the user from doing anything while legacy ports configure
+  pros::lcd::initialize();
   drivetrain::initialize();
   intake::initialize();
-
-  pros::lcd::initialize();
 
   // Set the drive to your own constants from autons.cpp!
   default_constants();
@@ -43,9 +42,8 @@ void initialize() {
   });
 
   // Initialize chassis and auton selector
-  globals::chassis.initialize();
   ez::as::initialize();
-  master.rumble(globals::chassis.drive_imu_calibrated() ? "." : "---");
+  master.rumble(drivetrain::isIMUCalibrated() ? "." : "---");
 }
 
 /**
@@ -82,29 +80,8 @@ void competition_initialize() {
  * from where it left off.
  */
 void autonomous() {
-  globals::chassis.pid_targets_reset();                // Resets PID targets to 0
-  globals::chassis.drive_imu_reset();                  // Reset gyro position to 0
-  globals::chassis.drive_sensor_reset();               // Reset drive sensors to 0
-  globals::chassis.odom_xyt_set(0_in, 0_in, 0_deg);    // Set the current position, you can start at a specific position with this
-  globals::chassis.drive_brake_set(MOTOR_BRAKE_HOLD);  // Set motors to hold.  This helps autonomous consistency
-  globals::chassis.odom_theta_flip(true);
-
-  ez::as::auton_selector.selected_auton_call();  // Calls selected auton from autonomous selector
-}
-
-/**
- * Simplifies printing tracker values to the brain screen
- */
-void screen_print_tracker(ez::tracking_wheel *tracker, std::string name, int line) {
-  std::string tracker_value = "", tracker_width = "";
-
-  // Check if the tracker exists
-  if (tracker != nullptr) {
-    tracker_value = name + " tracker: " + util::to_string_with_precision(tracker->get());             // Make text for the tracker value
-    tracker_width = "  width: " + util::to_string_with_precision(tracker->distance_to_center_get());  // Make text for the distance to center
-  }
-
-  ez::screen_print(tracker_value + tracker_width, line);  // Print final tracker text
+    drivetrain::prepareAutonomous();
+    ez::as::auton_selector.selected_auton_call();
 }
 
 /**
@@ -114,36 +91,20 @@ void screen_print_tracker(ez::tracking_wheel *tracker, std::string name, int lin
  */
 void ez_screen_task() {
   while (true) {
-    // Only run this when not connected to a competition switch
     if (!pros::competition::is_connected()) {
-      // Blank page for odom debugging
-      if (globals::chassis.odom_enabled() && !globals::chassis.pid_tuner_enabled()) {
-        // If we're on the first blank page...
-        if (ez::as::page_blank_is_on(0)) {
-          // Display X, Y, and Theta
-          ez::screen_print("x: " + util::to_string_with_precision(globals::chassis.odom_x_get()) +
-                               "\ny: " + util::to_string_with_precision(globals::chassis.odom_y_get()) +
-                               "\na: " + util::to_string_with_precision(globals::chassis.odom_theta_get()),
-                           1);  // Don't override the top Page line
-
-          // Display all trackers that are being used
-          screen_print_tracker(globals::chassis.odom_tracker_left, "l", 4);
-          screen_print_tracker(globals::chassis.odom_tracker_right, "r", 5);
-          screen_print_tracker(globals::chassis.odom_tracker_back, "b", 6);
-          screen_print_tracker(globals::chassis.odom_tracker_front, "f", 7);
-        }
+      if (ez::as::page_blank_is_on(0)) {
+        drivetrain::printDebugScreen();
       }
-    }
-
-    // Remove all blank pages when connected to a comp switch
-    else {
-      if (ez::as::page_blank_amount() > 0)
+    } else {
+      if (ez::as::page_blank_amount() > 0) {
         ez::as::page_blank_remove_all();
+      }
     }
 
     pros::delay(ez::util::DELAY_TIME);
   }
 }
+
 pros::Task ezScreenTask(ez_screen_task);
 
 /**
@@ -154,34 +115,14 @@ pros::Task ezScreenTask(ez_screen_task);
  * - gives you a GUI to change your PID values live by pressing X
  */
 void ez_template_extras() {
-  // Only run this when not connected to a competition switch
   if (!pros::competition::is_connected()) {
-    // PID Tuner
-    // - after you find values that you're happy with, you'll have to set them in auton.cpp
-
-    // Enable / Disable PID Tuner
-    //  When enabled:
-    //  * use A and Y to increment / decrement the constants
-    //  * use the arrow keys to navigate the constants
-    if (master.get_digital_new_press(DIGITAL_X))
-      globals::chassis.pid_tuner_toggle();
-
-    // Trigger the selected autonomous routine
-    if (master.get_digital(DIGITAL_B) && master.get_digital(DIGITAL_DOWN)) {
-      pros::motor_brake_mode_e_t preference = globals::chassis.drive_brake_get();
+    if (master.get_digital_new_press(DIGITAL_B) && master.get_digital(DIGITAL_DOWN)) {
       autonomous();
-      globals::chassis.drive_brake_set(preference);
+      drivetrain::prepareTeleop();
     }
-
-    // Allow PID Tuner to iterate
-    globals::chassis.pid_tuner_iterate();
   }
 
-  // Disable PID Tuner when connected to a comp switch
-  else {
-    if (globals::chassis.pid_tuner_enabled())
-      globals::chassis.pid_tuner_disable();
-  }
+  drivetrain::updatePID();
 }
 
 /**
@@ -197,26 +138,21 @@ void ez_template_extras() {
  * operator control task will be stopped. Re-enabling the robot will restart the
  * task, not resume it from where it left off.
  */
+
 void opcontrol() {
-  // This is preference to what you like to drive on
-  globals::chassis.drive_brake_set(MOTOR_BRAKE_HOLD);
-  drivetrain::setBehavior(drivetrain::Behavior::SPLIT_ARCADE);
-  drivetrain::setWantedState(drivetrain::WantedState::TELEOP_DRIVE);
+    drivetrain::prepareTeleop();
+    drivetrain::setBehavior(drivetrain::Behavior::SPLIT_ARCADE);
 
-  while (true) {
-    if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) {
-      const auto nextState = intake::getWantedState() == intake::WantedState::OPEN ? intake::WantedState::CLOSED : intake::WantedState::OPEN;
-      intake::setWantedState(nextState);
+    while (true) {
+      if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) {
+        intake::setWantedState(intake::getWantedState() == intake::WantedState::OPEN ? intake::WantedState::CLOSED : intake::WantedState::OPEN);
+      }
 
-      printf("Intake state changed: %s\n", nextState == intake::WantedState::OPEN ? "OPEN" : "CLOSED");
+      ez_template_extras();
+
+      drivetrain::periodic();
+      intake::periodic();
+
+      pros::delay(ez::util::DELAY_TIME);
     }
-
-    // Gives you some extras to make EZ-Template ezier
-    ez_template_extras();
-
-    drivetrain::periodic();
-    intake::periodic();
-
-    pros::delay(ez::util::DELAY_TIME);  // This is used for timer calculations!  Keep this ez::util::DELAY_TIME
-  }
 }
