@@ -15,5 +15,5 @@ namespace globals {
     extern pros::Imu& imu;
 
     // Intake
-    extern pros::adi::Pneumatics gripper;
+    extern pros::adi::Pneumatics piston;
 }
