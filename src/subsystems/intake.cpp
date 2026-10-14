@@ -17,14 +17,16 @@ namespace intake {
         }
 
         void applyStates() {
-            const bool shouldExtend = systemState == SystemState::OPEN;
-
-            if (globals::piston.is_extended() != shouldExtend) {
-                if (shouldExtend) {
-                    globals::piston.extend();
-                } else {
-                    globals::piston.retract();
-                }
+            switch (systemState) {
+                case SystemState::CLOSED_UNLOADED:
+                    if (globals::piston.is_extended()) globals::piston.retract();
+                    break;
+                case SystemState::CLOSED_LOADED:
+                    if (globals::piston.is_extended()) globals::piston.retract();
+                    break;
+                case SystemState::OPEN:
+                    if (!globals::piston.is_extended()) globals::piston.extend();
+                    break;
             }
         }
     }
