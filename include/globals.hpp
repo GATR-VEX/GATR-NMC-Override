@@ -14,6 +14,10 @@ namespace globals {
     extern ez::Drive chassis;
     extern pros::Imu& imu;
 
+    // Lift
+    extern pros::MotorGroup liftMotors;
+
     // Intake
     extern pros::adi::Pneumatics piston;
+    extern pros::Distance distance;
 }
