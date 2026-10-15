@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace constants {
     inline constexpr double kPi =  3.1415926;
 

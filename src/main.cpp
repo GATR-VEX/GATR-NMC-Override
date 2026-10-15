@@ -1,5 +1,6 @@
 #include "main.h"
 #include "subsystems/drivetrain.hpp"
+#include "subsystems/lift.hpp"
 #include "subsystems/intake.hpp"
 
 /**
@@ -12,8 +13,10 @@ void initialize() {
   ez::ez_template_print();
 
   pros::delay(500);  // Stop the user from doing anything while legacy ports configure
+
   pros::lcd::initialize();
   drivetrain::initialize();
+  lift::initialize();
   intake::initialize();
 
   // Set the drive to your own constants from autons.cpp!
@@ -151,6 +154,7 @@ void opcontrol() {
       ez_template_extras();
 
       drivetrain::periodic();
+      lift::periodic();
       intake::periodic();
 
       pros::delay(ez::util::DELAY_TIME);

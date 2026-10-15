@@ -66,7 +66,7 @@ namespace lift {
                 case WantedState::IDLE:
                     return SystemState::IDLING;
                 case WantedState::MOVE_TO_POSITION:
-                    return SystemState::MOVING_TO_POSITION;
+                    return homed ? SystemState::MOVING_TO_POSITION : SystemState::IDLING;
             }
 
             return SystemState::IDLING;
@@ -75,26 +75,24 @@ namespace lift {
         void applyStates() {
             switch (systemState) {
                 case SystemState::IDLING:
-                    break;
                     globals::liftMotors.move(0.0);
+                    break;
                 case SystemState::HOMING:
                     globals::liftMotors.move(constants::lift::kHomingPower);
                     break;
                 case SystemState::MOVING_TO_POSITION:
-                    if (isHomed) {
-                        const uint32_t now = pros::millis();
-                        const double dt = (now - lastControllerTimestamp) / 1000.0;
+                    const uint32_t now = pros::millis();
+                    const double dt = (now - lastControllerTimestamp) / 1000.0;
 
-                        lastControllerTimestamp = now;
-                        const double currentPosition = getPosition();
+                    lastControllerTimestamp = now;
+                    const double currentPosition = getPosition();
 
-                        const double output = controller.calculate(currentPosition, targetPosition, dt) + feedforward.calculate(0.0, 0.0);
-                        globals::liftMotors.move_voltage(static_cast<int>(std::clamp(
-                            output, 
-                            -12000.0,
-                            12000.0
-                        )));
-                    }
+                    const double output = controller.calculate(currentPosition, targetPosition, dt) + feedforward.calculate(0.0, 0.0);
+                    globals::liftMotors.move_voltage(static_cast<int>(std::clamp(
+                        output, 
+                        -12000.0,
+                        12000.0
+                    )));
 
                     break;
             }
@@ -171,7 +169,7 @@ namespace lift {
     }
 
     bool isHomed() {
-        return isHomed;
+        return homed;
     }
 
     bool atSetpoint() {

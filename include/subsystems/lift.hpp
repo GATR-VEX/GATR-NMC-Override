@@ -29,7 +29,6 @@ namespace lift {
     void setWantedState(WantedState state);
 
     WantedState getWantedState();
-    WantedState getWantedState(double targetPosition);
     SystemState getSystemState();
 
     void setTargetHeight(double heightInches);
@@ -37,8 +36,6 @@ namespace lift {
 
     double getPosition();
     double getVelocity();
-
-    void setTargetPosition();
 
     bool isHomed();
     bool atSetpoint();

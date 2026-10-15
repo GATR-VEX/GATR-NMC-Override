@@ -12,7 +12,7 @@ namespace utilities {
             SimpleMotorFeedforward(double kS, double kV, double kA): kS(kS), kV(kV), kA(kA) {};
 
             double calculate(double velocity, double acceleration = 0.0, double direction = 0.0) const {
-                const double direction = velocity != 0.0 ? velocity : direction;
+                const double effectiveDirection = velocity != 0.0 ? velocity : direction;
                 return kS * sign(direction) + kV * velocity + kA * acceleration;
             }
         private:
