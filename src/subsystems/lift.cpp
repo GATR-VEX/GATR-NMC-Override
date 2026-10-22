@@ -2,63 +2,63 @@
 
 namespace lift {
     namespace {
-        WantedState previousWantedState = WantedState::IDLE;
-        WantedState wantedState = WantedState::IDLE;
-        SystemState systemState = SystemState::IDLING;
+        WantedState previous_wanted_state = WantedState::IDLE;
+        WantedState wanted_state = WantedState::IDLE;
+        SystemState system_state = SystemState::IDLING;
 
         utilities::PIDController controller = utilities::PIDController(constants::lift::kP, 0.0, constants::lift::kD);
         utilities::ElevatorFeedforward feedforward = utilities::ElevatorFeedforward(constants::lift::kS, constants::lift::kV, constants::lift::kG, constants::lift::kA);
-        double targetPosition = 0.0;
+        double target_position = 0.0;
 
         bool homed = false;
         bool setpoint = false;
 
-        std::optional<uint32_t> homeTimestamp;
-        uint32_t homingStartTimestamp = 0;
-        uint32_t lastControllerTimestamp = 0;
+        std::optional<uint32_t> home_timestamp;
+        uint32_t homing_start_timestamp = 0;
+        uint32_t last_controller_timestamp = 0;
 
-        double radiansToHeight(double radians) {
+        double radians_to_height(double radians) {
             return constants::lift::kArmLengthInches * std::sin(radians);
         }
 
-        double heightToRadians(double heightInches) {
+        double height_to_radians(double heightInches) {
             return std::asin(heightInches / constants::lift::kArmLengthInches);
         }
 
-        SystemState handleStateTransitsion() {
-            switch (wantedState) {
+        SystemState handle_state_transitsion() {
+            switch (wanted_state) {
                 case WantedState::HOME: {
                     const uint32_t now = pros::millis();
 
-                    if (previousWantedState != WantedState::HOME) {
+                    if (system_state != SystemState::HOMING) {
                         homed = false;
-                        homeTimestamp.reset();
-                        homingStartTimestamp = pros::millis();
+                        home_timestamp.reset();
+                        homing_start_timestamp = pros::millis();
                     }
 
-                    if (now - homingStartTimestamp >= constants::lift::kHomingTimeoutMs) {
-                        setWantedState(WantedState::IDLE);
+                    if (now - homing_start_timestamp >= constants::lift::kHomingTimeoutMs) {
+                        set_wanted_state(WantedState::IDLE);
                         return SystemState::IDLING;
                     }
 
-                    if (std::abs(getVelocity()) <= constants::lift::kZeroVelocityThreshold) {
-                        if (!homeTimestamp.has_value()) {
-                            homeTimestamp = now;
+                    if (std::abs(get_velocity()) <= constants::lift::kZeroVelocityThreshold) {
+                        if (!home_timestamp.has_value()) {
+                            home_timestamp = now;
                             return SystemState::HOMING;
                         }
 
-                        if (now - *homeTimestamp >= constants::lift::kZeroVelocityTimeMs) {
+                        if (now - *home_timestamp >= constants::lift::kZeroVelocityTimeMs) {
                             globals::liftMotors.move(0);
                             globals::liftMotors.tare_position_all();
 
                             homed = true;
-                            homeTimestamp.reset();
+                            home_timestamp.reset();
 
-                            setWantedState(WantedState::IDLE);
+                            set_wanted_state(WantedState::IDLE);
                             return SystemState::IDLING;
                         }
                     } else {
-                        homeTimestamp.reset();
+                        home_timestamp.reset();
                     }
 
                     return SystemState::HOMING;
@@ -72,31 +72,53 @@ namespace lift {
             return SystemState::IDLING;
         }
 
-        void applyStates() {
-            switch (systemState) {
+        void apply_states() {
+            switch (system_state) {
                 case SystemState::IDLING:
                     globals::liftMotors.move(0.0);
                     break;
                 case SystemState::HOMING:
-                    globals::liftMotors.move(constants::lift::kHomingPower);
+                    globals::liftMotors.move_voltage(constants::lift::kHomingPower);
                     break;
                 case SystemState::MOVING_TO_POSITION:
                     const uint32_t now = pros::millis();
-                    const double dt = (now - lastControllerTimestamp) / 1000.0;
+                    const double dt = (now - last_controller_timestamp) / 1000.0;
 
-                    lastControllerTimestamp = now;
-                    const double currentPosition = getPosition();
+                    last_controller_timestamp = now;
+                    const double currentPosition = get_position();
 
-                    const double output = controller.calculate(currentPosition, targetPosition, dt) + feedforward.calculate(0.0, 0.0);
-                    globals::liftMotors.move_voltage(static_cast<int>(std::clamp(
-                        output, 
-                        -12000.0,
-                        12000.0
-                    )));
+                    const double output = controller.calculate(currentPosition, target_position, dt) + feedforward.calculate(0.0, 0.0);
+                    globals::liftMotors.move_voltage(static_cast<int>(std::clamp(output, -12000.0, 12000.0)));
 
                     break;
             }
         }
+
+		std::string wanted_state_to_string(WantedState state) {
+			switch (state) {
+				case WantedState::IDLE:
+					return "IDLE";
+				case WantedState::HOME:
+					return "HOME";
+				case WantedState::MOVE_TO_POSITION:
+					return "MOVE_TO_POSITION";
+			}
+
+			return "INDETERMINITE";
+		}
+
+		std::string system_state_to_string(SystemState state) {
+			switch (state) {
+				case SystemState::IDLING:
+					return "IDLING";
+				case SystemState::HOMING:
+					return "HOMING";
+				case SystemState::MOVING_TO_POSITION:
+					return "MOVING_TO_POSITION";
+			}
+
+			return "INDETERMINITE";
+		}
     }
 
     void initialize() {
@@ -104,75 +126,74 @@ namespace lift {
     }
 
     void periodic() {
-        systemState = handleStateTransitsion();
-        applyStates();
-
-        previousWantedState = wantedState;
+        system_state = handle_state_transitsion();
+        apply_states();
     }
 
-    void setWantedState(WantedState state) {
-        if (wantedState == state) return;
-        wantedState = state;
+    void set_wanted_state(WantedState state) {
+        if (wanted_state == state) return;
+        wanted_state = state;
     }
 
-    WantedState getWantedState() {
-        return wantedState;
+    WantedState get_wanted_state() {
+        return wanted_state;
     }
 
-    SystemState getSystemState() {
-        return systemState;
+    SystemState get_system_state() {
+        return system_state;
     }
 
-    void setTargetHeight(double heightInches) {
-        if (!std::isfinite(heightInches)) return;
-        if (heightInches < 0.0) return;
+    void set_target_height(double height_inches) {
+        if (!std::isfinite(height_inches)) return;
+        if (height_inches < 0.0) return;
 
-        targetPosition = heightToRadians(heightInches);
-        setWantedState(WantedState::MOVE_TO_POSITION);
+        target_position = height_to_radians(height_inches);
+        set_wanted_state(WantedState::MOVE_TO_POSITION);
     }
 
-    double getCurrentHeight() {
-        return radiansToHeight(targetPosition);
-    }
+    double get_position() {
+        vector<double> all_positions = globals::liftMotors.get_position_all();
 
-    double getPosition() {
-        vector<double> allPositions = globals::liftMotors.get_position_all();
-
-        if (allPositions.empty()) {
+        if (all_positions.empty()) {
             return 0.0;
         }
 
-        double positionSum = 0.0;
+        double position_sum = 0.0;
 
-        for (double position: allPositions) {
-            positionSum += position;
+        for (double position: all_positions) {
+            position_sum += position;
         }
 
-        return helpers::rotationsToRadians((positionSum / allPositions.size()) / constants::lift::kMotorReduction);
+        return helpers::rotationsToRadians((position_sum / all_positions.size()) / constants::lift::kMotorReduction);
     }
 
-    double getVelocity() {
-        vector<double> allVelocities = globals::liftMotors.get_actual_velocity_all();
+    double get_velocity() {
+        vector<double> all_velocities = globals::liftMotors.get_actual_velocity_all();
 
-        if (allVelocities.empty()) {
+        if (all_velocities.empty()) {
             return 0.0;
         }
 
-        double velocitySum = 0.0;
+        double velocity_sum = 0.0;
 
-        for (double position: allVelocities) {
-            velocitySum += position;
+        for (double velocity: all_velocities) {
+            velocity_sum += velocity;
         }
 
-        double averageMotorRPS = (velocitySum / allVelocities.size()) / 60.0;
+        double averageMotorRPS = (velocity_sum / all_velocities.size()) / 60.0;
         return helpers::rotationsToRadians(averageMotorRPS / constants::lift::kMotorReduction);
     }
 
-    bool isHomed() {
+    bool is_homed() {
         return homed;
     }
 
-    bool atSetpoint() {
+    bool at_setpoint() {
         return setpoint;
+    }
+
+    void screen_subtask() {
+	    ez::screen_print("Wanted State: " + wanted_state_to_string(wanted_state), 1);
+	    ez::screen_print("System State: " + system_state_to_string(system_state), 2);
     }
 }

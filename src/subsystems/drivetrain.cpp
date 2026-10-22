@@ -2,39 +2,39 @@
 
 namespace drivetrain {
     namespace {
-        WantedState wantedState = WantedState::IDLE;
-        SystemState systemState = SystemState::IDLE;
-        Behavior currentBehavior = Behavior::SPLIT_ARCADE;
+        WantedState wanted_state = WantedState::IDLE;
+        SystemState system_state = SystemState::IDLING;
+        Behavior current_behavior = Behavior::SPLIT_ARCADE;
 
         double targetPositionX = 0.0;
         double targetPositionY = 0.0;
     
         bool hasTargetPosition = false;
 
-        double getRobotHeading() {
+        double get_robot_heading() {
             return globals::chassis.drive_imu_get();
         }
 
-        SystemState handleStateTransition() {
-            switch (wantedState) {
+        SystemState handle_state_transition() {
+            switch (wanted_state) {
                 case WantedState::IDLE:
-                    globals::chassis.drive_set(0.0, 0.0);
-                    return SystemState::IDLE;
+                    return SystemState::IDLING;
                 case WantedState::TELEOP_DRIVE:
                     return SystemState::TELEOP_DRIVE;
                 case WantedState::DRIVE_TO_POINT:
                     return SystemState::DTP_ALIGNING;
             }
 
-            return SystemState::IDLE;
+            return SystemState::IDLING;
         }
 
-        void applyStates() {
-            switch (systemState) {
-                case SystemState::IDLE:
+        void apply_states() {
+            switch (system_state) {
+                case SystemState::IDLING:
+                    globals::chassis.drive_set(0.0, 0.0);
                     break;
                 case SystemState::TELEOP_DRIVE:
-                    switch (currentBehavior) {
+                    switch (current_behavior) {
                         case Behavior::TANK:
                             globals::chassis.opcontrol_tank();
                             break;
@@ -52,17 +52,6 @@ namespace drivetrain {
                 case SystemState::DTP_ALIGNED:
                     break;
             }
-        }
-
-        void screen_print_tracker(ez::tracking_wheel *tracker, std::string name, int line) {
-            std::string tracker_value = "", tracker_width = "";
-
-            if (tracker != nullptr) {
-                tracker_value = name + " tracker: " + util::to_string_with_precision(tracker->get());
-                tracker_width = "  width: " + util::to_string_with_precision(tracker->distance_to_center_get());
-            }
-
-            ez::screen_print(tracker_value + tracker_width, line);
         }
 
         void default_constants() {
@@ -97,7 +86,34 @@ namespace drivetrain {
 
             globals::chassis.pid_angle_behavior_set(ez::shortest); // Changes the default behavior for turning, this defaults it to the shortest path there
         }
+	
+	std::string wanted_state_to_string(WantedState state) {
+	    switch (state) {
+		case WantedState::IDLE:
+		    return "IDLE";
+		case WantedState::TELEOP_DRIVE:
+		    return "TELEOP_DRIVE";
+		case WantedState::DRIVE_TO_POINT:
+		    return "DRIVE_TO_POINT";
+	    }
 
+	    return "INDETERMINITE";
+	}
+
+	std::string system_state_to_string(SystemState state) {
+	    switch (state) {
+		case SystemState::IDLING:
+		    return "IDLING";
+		case SystemState::TELEOP_DRIVE:
+		    return "TELEOP_DRIVE";
+		case SystemState::DTP_ALIGNING:
+		    return "DTP_ALIGNING";
+	 	case SystemState::DTP_ALIGNED:
+		    return "DTP_ALIGNED";
+	    }
+
+	    return "INDETERMINITE";
+	} 
     }
 
     void initialize() {
@@ -106,17 +122,11 @@ namespace drivetrain {
         globals::chassis.opcontrol_curve_default_set(0.0, 0.0);
         globals::chassis.opcontrol_drive_reverse_set(true);
         globals::chassis.opcontrol_speed_max_set(127);
+        globals::chassis.odom_enable(true);
 
         // Joystick curve adjustment buttons
-        globals::chassis.opcontrol_curve_buttons_left_set(
-            pros::E_CONTROLLER_DIGITAL_LEFT,
-            pros::E_CONTROLLER_DIGITAL_RIGHT
-        );
-
-        globals::chassis.opcontrol_curve_buttons_right_set(
-            pros::E_CONTROLLER_DIGITAL_Y,
-            pros::E_CONTROLLER_DIGITAL_A
-        );
+        globals::chassis.opcontrol_curve_buttons_left_set(pros::E_CONTROLLER_DIGITAL_LEFT, pros::E_CONTROLLER_DIGITAL_RIGHT);
+        globals::chassis.opcontrol_curve_buttons_right_set(pros::E_CONTROLLER_DIGITAL_Y, pros::E_CONTROLLER_DIGITAL_A);
 
         // Configure autonomous PID constants.
         default_constants();
@@ -125,17 +135,17 @@ namespace drivetrain {
         globals::chassis.initialize();
 
         // Reset subsystem state.
-        wantedState = WantedState::IDLE;
-        systemState = SystemState::IDLE;
-        currentBehavior = Behavior::SPLIT_ARCADE;
+        wanted_state = WantedState::IDLE;
+        system_state = SystemState::IDLING;
+        current_behavior = Behavior::SPLIT_ARCADE;
     }
 
-    void prepareTeleop() {
+    void prepare_teleop() {
         globals::chassis.drive_brake_set(pros::motor_brake_mode_e_t::E_MOTOR_BRAKE_COAST);
-        setWantedState(WantedState::TELEOP_DRIVE);
+        set_wanted_state(WantedState::TELEOP_DRIVE);
     }
 
-    void prepareAutonomous() {
+    void prepare_autonomous() {
         globals::chassis.pid_targets_reset();
         globals::chassis.drive_imu_reset();
         globals::chassis.drive_sensor_reset();
@@ -144,50 +154,50 @@ namespace drivetrain {
     }
 
     void periodic() {
-        systemState = handleStateTransition();
-        applyStates();
+        system_state = handle_state_transition();
+        apply_states();
     }
 
-    void setWantedState(WantedState state) {
-        if (wantedState == state) return;
-        wantedState = state;
+    void set_wanted_state(WantedState state) {
+        if (wanted_state == state) return;
+        wanted_state = state;
     }
 
-    WantedState getWantedState() {
-        return wantedState;
+    WantedState get_wanted_state() {
+        return wanted_state;
     }
 
-    SystemState getSystemState() {
-        return systemState;
+    SystemState get_system_state() {
+        return system_state;
     }
 
-    void setBehavior(Behavior behavior) {
-        currentBehavior = behavior;
+    void set_behavior(Behavior behavior) {
+        current_behavior = behavior;
     }
 
-    Behavior getBehavior() {
-        return currentBehavior;
+    Behavior get_behavior() {
+        return current_behavior;
     }
 
-    bool isIMUCalibrating() {
+    bool is_imu_calibrating() {
         return globals::imu.is_calibrating();
     }
 
-    bool isIMUCalibrated() {
+    bool is_imu_calibrated() {
         return globals::chassis.drive_imu_calibrated();
     }
 
-    void setTargetPosition(double x, double y) {
+    void set_target_position(double x, double y) {
         if(!std::isfinite(x) || !std::isfinite(y)) return;
 
         targetPositionX = x;
         targetPositionY = y;
         hasTargetPosition = true;
 
-        setWantedState(WantedState::DRIVE_TO_POINT);
+        set_wanted_state(WantedState::DRIVE_TO_POINT);
     }
 
-    void updatePID() {
+    void update_pid() {
         if (pros::competition::is_connected()) {
             if (globals::chassis.pid_tuner_enabled()) {
                 globals::chassis.pid_tuner_disable();
@@ -204,14 +214,16 @@ namespace drivetrain {
     }
 
 
-    void printDebugScreen() {
+    void screen_subtask() {
         if (!globals::chassis.odom_enabled() || globals::chassis.pid_tuner_enabled()) return;
 
+	    ez::screen_print("System State: " + system_state_to_string(system_state), 1);
+	    ez::screen_print("Wanted State: " + wanted_state_to_string(wanted_state), 2);
         ez::screen_print(
-            "x: " + util::to_string_with_precision(globals::chassis.odom_x_get()) +
-            "\ny: " + util::to_string_with_precision(globals::chassis.odom_y_get()) +
-            "\na: " + util::to_string_with_precision(globals::chassis.odom_theta_get()),
-            1
+            "Pose Estimator | X: " + util::to_string_with_precision(globals::chassis.odom_x_get(), 3) +
+            " | Y: " + util::to_string_with_precision(globals::chassis.odom_y_get(), 3) +
+            " | θ: " + util::to_string_with_precision(globals::chassis.odom_theta_get(), 3),
+            3
         );
     }
 }

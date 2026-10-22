@@ -26,17 +26,19 @@ namespace lift {
     void initialize();
     void periodic();
 
-    void setWantedState(WantedState state);
+    void set_wanted_state(WantedState state);
 
-    WantedState getWantedState();
-    SystemState getSystemState();
+    WantedState get_wanted_state();
+    SystemState get_system_state();
 
-    void setTargetHeight(double heightInches);
-    double getCurrentHeight();
+    void set_target_height(double height_inches);
+    double get_current_height();
 
-    double getPosition();
-    double getVelocity();
+    double get_position();
+    double get_velocity();
 
-    bool isHomed();
-    bool atSetpoint();
+    bool is_homed();
+    bool at_setpoint();
+
+    void screen_subtask();
 }

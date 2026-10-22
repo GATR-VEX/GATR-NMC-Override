@@ -20,27 +20,27 @@ namespace drivetrain {
         TELEOP_DRIVE,
         DTP_ALIGNING,
         DTP_ALIGNED,
-        IDLE
+        IDLING
     };
 
     void initialize();
-    void prepareTeleop();
-    void prepareAutonomous();
+    void prepare_teleop();
+    void prepare_autonomous();
     void periodic();
 
-    void setWantedState(WantedState state);
+    void set_wanted_state(WantedState state);
 
-    WantedState getWantedState();
-    SystemState getSystemState();
+    WantedState get_wanted_state();
+    SystemState get_system_state();
 
-    void setBehavior(Behavior behavior);
-    Behavior getBehavior();
+    void set_behavior(Behavior behavior);
+    Behavior get_behavior();
 
-    bool isIMUCalibrating();
-    bool isIMUCalibrated();
+    bool is_imu_calibrating();
+    bool is_imu_calibrated();
 
-    void setTargetPosition(double x, double y);
+    void set_target_position(double x, double y);
 
-    void updatePID();
-    void printDebugScreen();
+    void update_pid();
+    void screen_subtask();
 }

@@ -46,7 +46,7 @@ void initialize() {
 
   // Initialize chassis and auton selector
   ez::as::initialize();
-  master.rumble(drivetrain::isIMUCalibrated() ? "." : "---");
+  master.rumble(drivetrain::is_imu_calibrated() ? "." : "---");
 }
 
 /**
@@ -83,7 +83,7 @@ void competition_initialize() {
  * from where it left off.
  */
 void autonomous() {
-    drivetrain::prepareAutonomous();
+    drivetrain::prepare_autonomous();
     ez::as::auton_selector.selected_auton_call();
 }
 
@@ -96,7 +96,11 @@ void ez_screen_task() {
   while (true) {
     if (!pros::competition::is_connected()) {
       if (ez::as::page_blank_is_on(0)) {
-        drivetrain::printDebugScreen();
+        drivetrain::screen_subtask();
+      } else if (ez::as::page_blank_is_on(1)) {
+	      lift::screen_subtask();
+      } else if (ez::as::page_blank_is_on(2)) {
+	      intake::screen_subtask();
       }
     } else {
       if (ez::as::page_blank_amount() > 0) {
@@ -121,11 +125,11 @@ void ez_template_extras() {
   if (!pros::competition::is_connected()) {
     if (master.get_digital_new_press(DIGITAL_B) && master.get_digital(DIGITAL_DOWN)) {
       autonomous();
-      drivetrain::prepareTeleop();
+      drivetrain::prepare_teleop();
     }
   }
 
-  drivetrain::updatePID();
+  drivetrain::update_pid();
 }
 
 /**
@@ -143,13 +147,17 @@ void ez_template_extras() {
  */
 
 void opcontrol() {
-    drivetrain::prepareTeleop();
-    drivetrain::setBehavior(drivetrain::Behavior::SPLIT_ARCADE);
+    drivetrain::prepare_teleop();
+    drivetrain::set_behavior(drivetrain::Behavior::SPLIT_ARCADE);
 
     while (true) {
       if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) {
-        intake::setWantedState(intake::getWantedState() == intake::WantedState::OPEN ? intake::WantedState::CLOSED : intake::WantedState::OPEN);
+        intake::set_wanted_state(intake::get_wanted_state() == intake::WantedState::OPEN ? intake::WantedState::CLOSED : intake::WantedState::OPEN);
       }
+
+      // if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R2)) {
+      //   lift::setWantedState(lift::WantedState::HOME);
+      // }
 
       ez_template_extras();
 

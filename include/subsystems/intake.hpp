@@ -1,6 +1,7 @@
 #pragma once
 
 #include "globals.hpp"
+#include "constants.hpp"
 
 namespace intake {
     enum class WantedState {
@@ -11,14 +12,16 @@ namespace intake {
     enum class SystemState {
         CLOSED_LOADED,
         CLOSED_UNLOADED,
-        OPEN
+        OPENED
     };
 
     void initialize();
     void periodic();
 
-    void setWantedState(WantedState state);
+    void set_wanted_state(WantedState state);
 
-    WantedState getWantedState();
-    SystemState getSystemState();
+    WantedState get_wanted_state();
+    SystemState get_system_state();
+
+    void screen_subtask();
 }
