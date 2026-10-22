@@ -8,8 +8,8 @@
 // Chassis constructor
 ez::Drive chassis(
     // These are your drive motors, the first motor is used for sensing!
-    {19, -16, 12, 14},   // Left Chassis Ports (negative port will reverse it!)
-    {-18, 15, -11, 13},  // Right Chassis Ports (negative port will reverse it!)
+    {19, -16},   // Left Chassis Ports (negative port will reverse it!)
+    {-18, 15},  // Right Chassis Ports (negative port will reverse it!)
 
     21,    // IMU Port
     3.25,  // Wheel Diameter (Remember, 4" wheels without screw holes are
@@ -60,7 +60,7 @@ void initialize() {
       true);  // Enables modifying the controller curve with buttons on the
               // joysticks
   chassis.opcontrol_drive_activebrake_set(
-      0.0);  // Sets the active brake kP. We recommend ~2.  0 will disable.
+      2.0);  // Sets the active brake kP. We recommend ~2.  0 will disable.
   chassis.opcontrol_curve_default_set(
       0.0, 0.0);  // Defaults for curve. If using tank, only the first parameter
                   // is used. (Comment this line out if you have an SD card!)
