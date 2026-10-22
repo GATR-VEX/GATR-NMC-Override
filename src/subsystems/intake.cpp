@@ -5,11 +5,17 @@ namespace intake {
         WantedState wanted_state = WantedState::CLOSED;
         SystemState system_state = SystemState::CLOSED_UNLOADED;
 
+        int cycle_cout = 0;
+
         SystemState handle_state_transition() {
             switch (wanted_state) {
                 case WantedState::CLOSED:
                     return SystemState::CLOSED_LOADED;
                 case WantedState::OPEN:
+                    if(system_state != SystemState::OPENED) {
+                        ++cycle_cout;
+                    }
+
                     return SystemState::OPENED;
             }
 
@@ -80,5 +86,7 @@ namespace intake {
     void screen_subtask() {
 		ez::screen_print("Wanted State: " + wanted_state_to_string(wanted_state), 1);
 		ez::screen_print("System State: " + system_state_to_string(system_state), 2);
+        ez::screen_print("Piston State: " + globals::piston.is_extended(), 4);
+        ez::screen_print("Cycle Count: " + util::to_string_with_precision(cycle_cout), 5);
     }
 }
