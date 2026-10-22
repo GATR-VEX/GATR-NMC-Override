@@ -21,8 +21,8 @@ namespace lift {
             return constants::lift::kArmLengthInches * std::sin(radians);
         }
 
-        double height_to_radians(double heightInches) {
-            return std::asin(heightInches / constants::lift::kArmLengthInches);
+        double height_to_radians(double height_inches) {
+            return std::asin(height_inches / constants::lift::kArmLengthInches);
         }
 
         SystemState handle_state_transitsion() {
@@ -48,8 +48,8 @@ namespace lift {
                         }
 
                         if (now - *home_timestamp >= constants::lift::kZeroVelocityTimeMs) {
-                            globals::liftMotors.move(0);
-                            globals::liftMotors.tare_position_all();
+                            globals::lift_motors.move(0);
+                            globals::lift_motors.tare_position_all();
 
                             homed = true;
                             home_timestamp.reset();
@@ -75,10 +75,10 @@ namespace lift {
         void apply_states() {
             switch (system_state) {
                 case SystemState::IDLING:
-                    globals::liftMotors.move(0.0);
+                    globals::lift_motors.move(0.0);
                     break;
                 case SystemState::HOMING:
-                    globals::liftMotors.move_voltage(constants::lift::kHomingPower);
+                    globals::lift_motors.move_voltage(constants::lift::kHomingPower);
                     break;
                 case SystemState::MOVING_TO_POSITION:
                     const uint32_t now = pros::millis();
@@ -87,8 +87,8 @@ namespace lift {
                     last_controller_timestamp = now;
                     const double currentPosition = get_position();
 
-                    const double output = controller.calculate(currentPosition, target_position, dt) + feedforward.calculate(0.0, 0.0);
-                    globals::liftMotors.move_voltage(static_cast<int>(std::clamp(output, -12000.0, 12000.0)));
+                    const double output = controller.calculate(currentPosition, target_position, dt) + feedforward.calculate(0.0, get_velocity());
+                    globals::lift_motors.move_voltage(static_cast<int>(std::clamp(output, -12000.0, 12000.0)));
 
                     break;
             }
@@ -122,7 +122,7 @@ namespace lift {
     }
 
     void initialize() {
-        globals::liftMotors.set_encoder_units_all(pros::E_MOTOR_ENCODER_ROTATIONS);
+        globals::lift_motors.set_encoder_units_all(pros::E_MOTOR_ENCODER_ROTATIONS);
     }
 
     void periodic() {
@@ -152,7 +152,7 @@ namespace lift {
     }
 
     double get_position() {
-        vector<double> all_positions = globals::liftMotors.get_position_all();
+        vector<double> all_positions = globals::lift_motors.get_position_all();
 
         if (all_positions.empty()) {
             return 0.0;
@@ -164,11 +164,11 @@ namespace lift {
             position_sum += position;
         }
 
-        return helpers::rotationsToRadians((position_sum / all_positions.size()) / constants::lift::kMotorReduction);
+        return helpers::rotations_to_radians((position_sum / all_positions.size()) / constants::lift::kMotorReduction);
     }
 
     double get_velocity() {
-        vector<double> all_velocities = globals::liftMotors.get_actual_velocity_all();
+        vector<double> all_velocities = globals::lift_motors.get_actual_velocity_all();
 
         if (all_velocities.empty()) {
             return 0.0;
@@ -181,7 +181,7 @@ namespace lift {
         }
 
         double averageMotorRPS = (velocity_sum / all_velocities.size()) / 60.0;
-        return helpers::rotationsToRadians(averageMotorRPS / constants::lift::kMotorReduction);
+        return helpers::rotations_to_radians(averageMotorRPS / constants::lift::kMotorReduction);
     }
 
     bool is_homed() {

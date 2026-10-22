@@ -15,7 +15,7 @@ namespace globals {
     extern pros::Imu& imu;
 
     // Lift
-    extern pros::MotorGroup liftMotors;
+    extern pros::MotorGroup lift_motors;
 
     // Intake
     extern pros::adi::Pneumatics piston;

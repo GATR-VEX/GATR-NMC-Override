@@ -1,15 +1,15 @@
 #include "helpers.hpp"
 
 namespace helpers {
-    double wrapHeading(double degrees) {
+    double wrap_heading(double degrees) {
         return std::remainder(degrees, 360.0);
     }
 
-    double rotationsToRadians(double rotations) {
+    double rotations_to_radians(double rotations) {
         return 2 * rotations * constants::kPi;
     }
 
-    double radiansToRotations(double radians) {
+    double radians_to_rotations(double radians) {
         return radians / (2 * constants::kPi);
     }
 }
