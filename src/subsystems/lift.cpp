@@ -7,7 +7,7 @@ namespace lift {
         SystemState system_state = SystemState::IDLING;
 
         utilities::PIDController controller = utilities::PIDController(constants::lift::kP, 0.0, constants::lift::kD);
-        utilities::ElevatorFeedforward feedforward = utilities::ElevatorFeedforward(constants::lift::kS, constants::lift::kV, constants::lift::kG, constants::lift::kA);
+        utilities::ArmFeedforward feedforward = utilities::ArmFeedforward(constants::lift::kS, constants::lift::kV, constants::lift::kG, constants::lift::kA);
         double target_position = 0.0;
 
         bool homed = false;
