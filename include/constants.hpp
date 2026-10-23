@@ -3,35 +3,38 @@
 #include <cstdint>
 
 namespace constants {
-    inline constexpr double kPi =  3.1415926;
-    inline constexpr bool kTuningMode = true;
+    inline constexpr double PI =  3.1415926;
+    inline constexpr bool TUNING_MODE = true;
 
     namespace drivetrain {
 
     }
 
     namespace lift {
-        inline constexpr double kP = 0.0;
-        inline constexpr double kD = 0.0;
-        inline constexpr double kS = 0.0;
-        inline constexpr double kV = 0.0;
-        inline constexpr double kG = 9000.0;
-        inline constexpr double kA = 0.0;
+        inline constexpr double KP = 0.0;
+        inline constexpr double KD = 0.0;
+        inline constexpr double KS = 1990.0;
+        inline constexpr double KV = 0.0;
+        inline constexpr double KG = 1810.0;
+        inline constexpr double KA = 0.0;
 
-        inline constexpr double kZeroVelocityThreshold = 0.125;
+        inline constexpr double ZERO_VELOCITY_THRESHOLD = 0.125;
 
-        inline constexpr uint32_t kZeroVelocityTimeMs = 300;
-        inline constexpr uint32_t kHomingTimeoutMs = 5000;
-        inline constexpr int kHomingPower = -12000;
+        inline constexpr uint32_t ZERO_VELOCITY_TIME_MS = 300;
+        inline constexpr uint32_t HOMING_TIMEOUT_MS = 5000;
+        inline constexpr int HOMING_VOLTAGE = -12000;
+        inline constexpr double MECHANISM_HOMING_ANGLE = (-PI) / 4.0;
 
-        inline constexpr double kMotorReduction = 1.0;
-        inline constexpr double kMinimumPosition = 0.0;
-        inline constexpr double kMaxiumumPosition = 47.0;
+        inline constexpr double MECHANISM_REDUCTION = (48.0 / 16.0);
+        inline constexpr double MINIMUM_POSITION_INCHES = 0.0;
+        inline constexpr double MAXIMUM_POSITION_INCHES = 47.0;
 
-        inline constexpr double kPositionTolerence = 2.0;
-        inline constexpr double kVelocityTholerence = 2.0;
+        inline constexpr double POSITION_TOLERENCE_INCHES = 2.0;
+        inline constexpr double VELOCITY_TOLERENCE_INCHES_PER_SECOND = 2.0;
+        inline constexpr double MAXIMUM_VELOCITY_INCHES_PER_SECOND = 30.0;
+        inline constexpr double MAXIMUM_ACCELERATION_INCHES_PER_SECOND_SQUARED = 60.0;
 
-        inline constexpr double kArmLengthInches = 16.5;
+        inline constexpr double ARM_LENGTH_DR4B = 28.7;
     }
 
     namespace intake {

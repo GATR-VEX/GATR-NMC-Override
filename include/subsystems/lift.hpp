@@ -3,6 +3,7 @@
 #include "helpers.hpp"
 #include "globals.hpp"
 #include "constants.hpp"
+#include "utilities/motion_profiler.hpp"
 #include "utilities/arm_feedforward.hpp"
 #include "utilities/pid.hpp"
 

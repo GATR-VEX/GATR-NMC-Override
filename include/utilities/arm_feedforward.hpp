@@ -19,6 +19,10 @@ namespace utilities {
         public:
             ArmFeedforward(double kS, double kV, double kG, double kA = 0.0, double period = 0.01): kS(kS), kV(std::max(0.0, kV)), kG(kG), kA(std::max(0.0, kA)), period(period > 0.0 ? period : 0.01) {}
 
+            double calculate(double angle_radians, double velocity, double acceleration) const {
+                return kS * sign(velocity) + kV * velocity + kG * std::cos(angle_radians) + kA * acceleration;
+            }
+
             double calculate(double angle_radians, double velocity) const {
                 return kS * sign(velocity) + kV * velocity + kG * std::cos(angle_radians);
             }

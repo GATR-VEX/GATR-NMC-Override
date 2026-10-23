@@ -150,19 +150,25 @@ void opcontrol() {
     drivetrain::prepare_teleop();
     drivetrain::set_behavior(drivetrain::Behavior::SPLIT_ARCADE);
 
+    double milli_volts = 0.0;
+
     while (true) {
       if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) {
-        intake::set_wanted_state(intake::get_wanted_state() == intake::WantedState::OPEN ? intake::WantedState::CLOSED : intake::WantedState::OPEN);
+       intake::set_wanted_state(intake::get_wanted_state() == intake::WantedState::OPEN ? intake::WantedState::CLOSED : intake::WantedState::OPEN);
       }
 
-      // if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R2)) {
-      //   lift::setWantedState(lift::WantedState::HOME);
-      // }
+      if(master.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
+        globals::lift_motors.move_voltage(9000);
+      } else if(master.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
+        globals::lift_motors.move_voltage(-9000);
+      } else {
+        globals::lift_motors.move_voltage(0.0);
+      }
 
       ez_template_extras();
 
       drivetrain::periodic();
-      lift::periodic();
+      //lift::periodic();
       intake::periodic();
 
       pros::delay(ez::util::DELAY_TIME);

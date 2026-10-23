@@ -6,10 +6,10 @@ namespace helpers {
     }
 
     double rotations_to_radians(double rotations) {
-        return 2 * rotations * constants::kPi;
+        return 2 * rotations * constants::PI;
     }
 
     double radians_to_rotations(double radians) {
-        return radians / (2 * constants::kPi);
+        return radians / (2 * constants::PI);
     }
 }

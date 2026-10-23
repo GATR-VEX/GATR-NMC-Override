@@ -220,7 +220,7 @@ namespace drivetrain {
 	    ez::screen_print("System State: " + system_state_to_string(system_state), 1);
 	    ez::screen_print("Wanted State: " + wanted_state_to_string(wanted_state), 2);
         ez::screen_print(
-            "Pose Estimator | X: " + util::to_string_with_precision(globals::chassis.odom_x_get(), 3) +
+            "Pose Estimator | X: " + util::to_string_with_precision(globals::chassis.odom_x_get(), 4) +
             " | Y: " + util::to_string_with_precision(globals::chassis.odom_y_get(), 3) +
             " | θ: " + util::to_string_with_precision(globals::chassis.odom_theta_get(), 3),
             3

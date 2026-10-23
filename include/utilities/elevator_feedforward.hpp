@@ -17,7 +17,7 @@ namespace utilities {
             }
 
         public:
-            ElevatorFeedforward(double kS, double kV, double kG, double kA = 0.0, double perioid = 0.01): kS(kS), kV(std::max(0.0, kV)), kG(kG), kA(std::max(0.0, kA)), period(perioid > 0.0 ? period : 0.01) {}
+            ElevatorFeedforward(double kS, double kV, double kG, double kA = 0.0, double period = 0.01): kS(kS), kV(std::max(0.0, kV)), kG(kG), kA(std::max(0.0, kA)), period(period > 0.0 ? period : 0.01) {}
             
             double calculate(double velocity) const {
                 return calculate_with_velocities(velocity, velocity);
