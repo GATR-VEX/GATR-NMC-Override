@@ -8,8 +8,8 @@
 // Chassis constructor
 ez::Drive chassis(
     // These are your drive motors, the first motor is used for sensing!
-    {19, -16},   // Left Chassis Ports (negative port will reverse it!)
-    {-18, 15},  // Right Chassis Ports (negative port will reverse it!)
+    {-20, -15},  // Left Chassis Ports (negative port will reverse it!)
+    {19, 16},    // Right Chassis Ports (negative port will reverse it!)
 
     21,    // IMU Port
     3.25,  // Wheel Diameter (Remember, 4" wheels without screw holes are
@@ -295,8 +295,8 @@ void opcontrol() {
     // Gives you some extras to make EZ-Template ezier
     ez_template_extras();
 
-    chassis.opcontrol_tank();  // Tank control
-    // chassis.opcontrol_arcade_standard(ez::SPLIT);   // Standard split arcade
+    // chassis.opcontrol_tank();  // Tank control
+    chassis.opcontrol_arcade_standard(ez::SPLIT);  // Standard split arcade
     // chassis.opcontrol_arcade_standard(ez::SINGLE);  // Standard single arcade
     // chassis.opcontrol_arcade_flipped(ez::SPLIT);    // Flipped split arcade
     // chassis.opcontrol_arcade_flipped(ez::SINGLE);   // Flipped single arcade
@@ -304,6 +304,20 @@ void opcontrol() {
     // . . .
     // Put more user control code here!
     // . . .
+
+    if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
+      left_dr4b.move(127);
+      right_dr4b.move(127);
+    } else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
+      left_dr4b.move(-127 / 3);
+      right_dr4b.move(-127 / 3);
+    } else {
+      left_dr4b.move(0);
+      right_dr4b.move(0);
+    }
+
+    left_dr4b.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+    right_dr4b.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
 
     pros::delay(ez::util::DELAY_TIME);  // This is used for timer calculations!
                                         // Keep this ez::util::DELAY_TIME
