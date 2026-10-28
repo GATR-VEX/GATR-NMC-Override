@@ -1,11 +1,12 @@
 #include "main.h"
 
+
 /////
 // For installation, upgrading, documentations, and tutorials, check out our website!
 // https://ez-robotics.github.io/EZ-Template/
 /////
 
-// Chassis constructor
+// Chassis constructor, need to change values
 ez::Drive chassis(
     // These are your drive motors, the first motor is used for sensing!
     {-5, -6, -7, -8},  // Left Chassis Ports (negative port will reverse it!)
@@ -23,12 +24,13 @@ ez::Drive chassis(
 // ez::tracking_wheel horiz_tracker(8, 2.75, 4.0);  // This tracking wheel is perpendicular to the drive wheels
 // ez::tracking_wheel vert_tracker(9, 2.75, 4.0);   // This tracking wheel is parallel to the drive wheels
 
+pros::Task Lift_task(liftTask); //can be removed if causing issues
 /**
  * Runs initialization code. This occurs as soon as the program is started.
  *
  * All other competition modes are blocked by initialize; it is recommended
  * to keep execution time for this mode under a few seconds.
- */
+ */\
 void initialize() {
   // Print our branding over your terminal :D
   ez::ez_template_print();
@@ -77,6 +79,8 @@ void initialize() {
   // Initialize chassis and auton selector
   chassis.initialize();
   ez::as::initialize();
+  lift.tare_position();
+  liftPID.exit_condition_set(80,50,300,150,500,500); //will need to change
   master.rumble(chassis.drive_imu_calibrated() ? "." : "---");
 }
 
@@ -239,6 +243,7 @@ void ez_template_extras() {
  * operator control task will be stopped. Re-enabling the robot will restart the
  * task, not resume it from where it left off.
  */
+int countController = 0;
 void opcontrol() {
   // This is preference to what you like to drive on
   chassis.drive_brake_set(MOTOR_BRAKE_COAST);
@@ -257,6 +262,39 @@ void opcontrol() {
     // Put more user control code here!
     // . . .
 
+    //change controller ports as needed!
+    //intake control
+    if(master.get_digital(DIGITAL_L1)){
+      intake.move(127);
+    }
+    else if(master.get_digital(DIGITAL_L2)){
+      intake.move(-127);
+    }
+    else{
+      intake.move(0);
+    }
+    // Lift control
+    if(master.get_digital(DIGITAL_UP)){
+      liftPID.target_set(500);
+    }
+    else if(master.get_digital(DIGITAL_DOWN)){
+      liftPID.target_set(0);
+    }
+    if(!(countController%25)){
+      master.print(0, 0, "%lf", lift.get_position());
+    }
+    countController++;
+    //tilt control
+    if(master.get_digital(DIGITAL_R1)){
+      tilt.move(127);
+    }
+    else if(master.get_digital(DIGITAL_R2)){
+      tilt.move(-127);
+    }
+    else{
+      tilt.move(0);
+    }
+    piston.button_toggle(master.get_digital(DIGITAL_Y)); //claw control
     pros::delay(ez::util::DELAY_TIME);  // This is used for timer calculations!  Keep this ez::util::DELAY_TIME
   }
 }

@@ -28,7 +28,7 @@ class slew {
    *
    * \param distance
    *        the distance the robot travels before reaching max speed
-   * \param minimum_speed
+   * \param minimum_speed 
    *        the starting speed for the movement
    */
   slew(double distance, int minimum_speed);

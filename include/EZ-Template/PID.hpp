@@ -6,7 +6,7 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #pragma once
 
-#include "EZ-Template/util.hpp"
+#include "util.hpp"
 #include "api.h"
 
 namespace ez {

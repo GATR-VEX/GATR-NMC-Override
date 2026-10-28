@@ -376,3 +376,19 @@ void measure_offsets() {
 // . . .
 // Make your own autonomous functions here!
 // . . .
+//lift pid
+void set_lift(int liftpower){
+  lift.move(liftpower);
+}
+ez::PID liftPID(0.5, 0.0, 0.0, 0.0,"Lift"); //need to tune these
+void liftWait(){
+  while( liftPID.exit_condition(true) == ez::RUNNING){
+    pros::delay(ez::util::DELAY_TIME);
+  }
+}
+void liftTask(){
+  pros::delay(2000);
+  while(true){
+    set_lift(liftPID.compute(lift.get_position()));
+  } 
+}
