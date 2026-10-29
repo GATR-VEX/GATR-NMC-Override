@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace utilities {
+namespace controls {
     class SimpleMotorFeedforward {
         private:
             double kS;

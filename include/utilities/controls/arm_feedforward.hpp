@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
-namespace utilities {
-    class ElevatorFeedforward {
+namespace controls {
+    class ArmFeedforward {
         private:
             double kS;
             double kV;
@@ -17,22 +17,19 @@ namespace utilities {
             }
 
         public:
-            ElevatorFeedforward(double kS, double kV, double kG, double kA = 0.0, double period = 0.01): kS(kS), kV(std::max(0.0, kV)), kG(kG), kA(std::max(0.0, kA)), period(period > 0.0 ? period : 0.01) {}
-            
-            double calculate(double velocity) const {
-                return calculate_with_velocities(velocity, velocity);
+            ArmFeedforward(double kS, double kV, double kG, double kA = 0.0, double period = 0.01): kS(kS), kV(std::max(0.0, kV)), kG(kG), kA(std::max(0.0, kA)), period(period > 0.0 ? period : 0.01) {}
+
+            double calculate(double angle_radians, double velocity, double acceleration) const {
+                return kS * sign(velocity) + kV * velocity + kG * std::cos(angle_radians) + kA * acceleration;
             }
 
-            double calculate_with_velocities(double current_velocity, double next_velocity) const {
-                if (kA < 1e-9) {
-                    return kS * sign(next_velocity) + kG + kV * next_velocity;
-                }
+            double calculate(double angle_radians, double velocity) const {
+                return kS * sign(velocity) + kV * velocity + kG * std::cos(angle_radians);
+            }
 
-                const double A = -kV / kA;
-                const double ad = std::exp(A * period);
-                const double bd = kV < 1e-9 ? period / kA : -std::expm1(A * period) / kV;
-
-                return kG + kS * sign(current_velocity) + (next_velocity - ad * current_velocity) / bd;
+            double calculate_with_velocities(double angle_radians, double current_velocity, double next_velocity) const {
+                const double acceleration = (next_velocity - current_velocity) / period;
+                return kS * sign(current_velocity) + kV * current_velocity + kG * std::cos(angle_radians) + kA * acceleration;
             }
 
             void set_ks(double value) {

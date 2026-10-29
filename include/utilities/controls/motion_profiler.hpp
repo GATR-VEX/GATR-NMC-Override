@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace utilities {
+namespace controls {
     class MotionProfiler {
         public:
             struct Constraints {
