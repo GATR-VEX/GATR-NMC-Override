@@ -1,5 +1,5 @@
 #include "main.h"
-
+#include "subsystems.hpp"
 /////
 // For installation, upgrading, documentations, and tutorials, check out our website!
 // https://ez-robotics.github.io/EZ-Template/
@@ -240,17 +240,21 @@ void ez_template_extras() {
  * operator control task will be stopped. Re-enabling the robot will restart the
  * task, not resume it from where it left off.
  */
+pros::Controller master(pros::E_CONTROLLER_MASTER);
+pros::MotorGroup lift({-11, 12}); // Negative port reverses that motor
+    
 void opcontrol() {
-    pros::Controller master(pros::E_CONTROLLER_MASTER);
-    inline pros::MotorGroup lift({-11, 12}); // Negative port reverses that motor
     //pros::MotorGroup drive({7, -18, 19, -20}); //ports 17 and 19 are normal, ports 18 and 20 are reversed
     while (true) {
+        ez_template_extras();
 
+        chassis.opcontrol_tank();  // Tank control
+        
         if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
-            lift.move(127); //lift up at max power
+            lift.move(75); //lift up at max power
         }
         else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
-            lift.move(-127); //lift down at max power
+            lift.move(-75); //lift down at max power
         }
         else {
             lift.move(0); //stop lift

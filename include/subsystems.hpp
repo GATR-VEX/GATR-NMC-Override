@@ -4,6 +4,8 @@
 #include "api.h"
 
 extern Drive chassis;
+extern pros::Controller master;
+extern pros::MotorGroup lift;
 
 // Your motors, sensors, etc. should go here.  Below are examples
 // inline pros::Motor intake(1);
