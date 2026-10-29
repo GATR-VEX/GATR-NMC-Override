@@ -184,8 +184,8 @@ namespace lift {
         Logger::recordOutput("Lift/CurrentVelocityInchesPerSecond", (constants::lift::ARM_LENGTH_DR4B * std::cos(get_position() + constants::lift::MECHANISM_HOMING_ANGLE) * get_velocity()));
         Logger::recordOutput("Lift/TargetVelocityInchesPerSecond", profiled_reference.velocity);
 
-        Logger::recordOutput("Lift/WantedState", std::to_string(static_cast<int>(wanted_state)));
-        Logger::recordOutput("Lift/SystemState", std::to_string(static_cast<int>(system_state)));
+        Logger::recordOutput("Lift/WantedState", static_cast<int>(wanted_state));
+        Logger::recordOutput("Lift/SystemState", static_cast<int>(system_state));
         Logger::recordOutput("Lift/Homed", is_homed());
     }
 
@@ -281,8 +281,8 @@ namespace lift {
 
 
     void screen_subtask() {
-	    ez::screen_print("Wanted State: " + static_cast<int>(wanted_state), 1);
-	    ez::screen_print("System State: " + static_cast<int>(system_state), 2);
+	    ez::screen_print("Wanted State: " + std::to_string(static_cast<int>(wanted_state)), 1);
+	    ez::screen_print("System State: " + std::to_string(static_cast<int>(system_state)), 2);
 
         ez::screen_print("Lift Voltage: " + util::to_string_with_precision(globals::lift_motors.get_voltage()), 4);
         ez::screen_print("Target Height: " + util::to_string_with_precision(goal_reference.position), 5);
