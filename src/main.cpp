@@ -8,9 +8,10 @@
 // Chassis constructor
 ez::Drive chassis(
     // These are your drive motors, the first motor is used for sensing!
-    {-18, 15, -11, -13},  // Left Chassis Ports (negative port will reverse it!)
-    {19, -16, 12, 14},  // Right Chassis Ports (negative port will reverse it!)
-
+    //{-18, 15, -11, -13},  // Left Chassis Ports (negative port will reverse it!)
+    //{19, -16, 12, 14},  // Right Chassis Ports (negative port will reverse it!)
+    {17, 18},
+    {-19, -20},
     21,      // IMU Port
     4.125,   // Wheel Diameter (Remember, 4" wheels without screw holes are actually 4.125!)
     420.0);  // Wheel RPM = cartridge * (motor gear / wheel gear)
@@ -240,23 +241,20 @@ void ez_template_extras() {
  * task, not resume it from where it left off.
  */
 void opcontrol() {
-  // This is preference to what you like to drive on
-  chassis.drive_brake_set(MOTOR_BRAKE_COAST);
+    pros::Controller master(pros::E_CONTROLLER_MASTER);
+    //pros::MotorGroup drive({7, -18, 19, -20}); //ports 17 and 19 are normal, ports 18 and 20 are reversed
+    while (true) {
 
-  while (true) {
-    // Gives you some extras to make EZ-Template ezier
-    ez_template_extras();
+        if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
+            lift.move(127); //lift up at max power
+        }
+        else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
+            lift.move(-127); //lift down at max power
+        }
+        else {
+            lift.move(0); //stop lift
+        }
 
-    chassis.opcontrol_tank();  // Tank control
-    // chassis.opcontrol_arcade_standard(ez::SPLIT);   // Standard split arcade
-    // chassis.opcontrol_arcade_standard(ez::SINGLE);  // Standard single arcade
-    // chassis.opcontrol_arcade_flipped(ez::SPLIT);    // Flipped split arcade
-    // chassis.opcontrol_arcade_flipped(ez::SINGLE);   // Flipped single arcade
-
-    // . . .
-    // Put more user control code here!
-    // . . .
-
-    pros::delay(ez::util::DELAY_TIME);  // This is used for timer calculations!  Keep this ez::util::DELAY_TIME
-  }
+        pros::delay(20);
+    }
 }
