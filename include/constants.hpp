@@ -13,9 +13,9 @@ namespace constants {
     namespace lift {
         inline constexpr double KP = 0.0;
         inline constexpr double KD = 0.0;
-        inline constexpr double KS = 1990.0;
+        inline constexpr double KS = 1.990;
         inline constexpr double KV = 0.0;
-        inline constexpr double KG = 1810.0;
+        inline constexpr double KG = 1.810;
         inline constexpr double KA = 0.0;
 
         inline constexpr double ZERO_VELOCITY_THRESHOLD = 0.125;
