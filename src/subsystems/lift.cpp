@@ -1,4 +1,7 @@
 #include "subsystems/lift.hpp"
+#include "utilities/logger.hpp"
+
+using utilities::Logger;
 
 namespace lift {
     namespace {
@@ -36,15 +39,15 @@ namespace lift {
         SystemState system_state = SystemState::IDLING;
         SystemState next_system_state = SystemState::IDLING;
 
-        utilities::PIDController controller = utilities::PIDController(constants::lift::KP, 0.0, constants::lift::KD);
-        utilities::ArmFeedforward feedforward = utilities::ArmFeedforward(constants::lift::KS, constants::lift::KV, constants::lift::KG, constants::lift::KA);
-        utilities::MotionProfiler motion_profiler = utilities::MotionProfiler({
+        controls::PIDController controller = controls::PIDController(constants::lift::KP, 0.0, constants::lift::KD);
+        controls::ArmFeedforward feedforward = controls::ArmFeedforward(constants::lift::KS, constants::lift::KV, constants::lift::KG, constants::lift::KA);
+        controls::MotionProfiler motion_profiler = controls::MotionProfiler({
             constants::lift::MAXIMUM_VELOCITY_INCHES_PER_SECOND,
             constants::lift::MAXIMUM_ACCELERATION_INCHES_PER_SECOND_SQUARED
         });
 
-        utilities::MotionProfiler::State profiled_reference{};
-        utilities::MotionProfiler::State goal_reference{};
+        controls::MotionProfiler::State profiled_reference{};
+        controls::MotionProfiler::State goal_reference{};
 
         bool homed = false;
 
@@ -132,9 +135,7 @@ namespace lift {
                         return;
                     }
 
-                    const double output = controller.calculate(get_position(), reference.position, dt) + feedforward.calculate(
-                        reference.position + constants::lift::MECHANISM_HOMING_ANGLE, reference.velocity, reference.acceleration
-                    );
+                    const double output = controller.calculate(get_position(), reference.position, dt) + feedforward.calculate(reference.position + constants::lift::MECHANISM_HOMING_ANGLE, reference.velocity, reference.acceleration);
 
                     if (!std::isfinite(output)) {
                         globals::lift_motors.move_voltage(0);
@@ -146,36 +147,20 @@ namespace lift {
                     break;
             }
         }
-
-		std::string wanted_state_to_string(WantedState state) {
-			switch (state) {
-				case WantedState::IDLE:
-					return "IDLE";
-				case WantedState::HOME:
-					return "HOME";
-				case WantedState::MOVE_TO_POSITION:
-					return "MOVE_TO_POSITION";
-			}
-
-			return "INDETERMINITE";
-		}
-
-		std::string system_state_to_string(SystemState state) {
-			switch (state) {
-				case SystemState::IDLING:
-					return "IDLING";
-				case SystemState::HOMING:
-					return "HOMING";
-				case SystemState::MOVING_TO_POSITION:
-					return "MOVING_TO_POSITION";
-			}
-
-			return "INDETERMINITE";
-		}
     }
 
     void initialize() {
         globals::lift_motors.set_encoder_units_all(pros::E_MOTOR_ENCODER_ROTATIONS);
+
+        Logger::registerOutput("Lift/CurrentHeightInches");
+        Logger::registerOutput("Lift/TargetHeightInches");
+
+        Logger::registerOutput("Lift/CurrentVelocityInchesPerSecond");
+        Logger::registerOutput("Lift/TargetVelocityInchesPerSecond");
+
+        Logger::registerOutput("Lift/WantedState");
+        Logger::registerOutput("Lift/SystemState");
+        Logger::registerOutput("Lift/Homed");
     }
 
     void periodic() {
@@ -192,6 +177,16 @@ namespace lift {
 
         system_state = next_system_state;
         apply_states();
+
+        Logger::recordOutput("Lift/CurrentHeightInches", radians_to_height(get_position()));
+        Logger::recordOutput("Lift/TargetHeightInches", goal_reference.position);
+
+        Logger::recordOutput("Lift/CurrentVelocityInchesPerSecond", (constants::lift::ARM_LENGTH_DR4B * std::cos(get_position() + constants::lift::MECHANISM_HOMING_ANGLE) * get_velocity()));
+        Logger::recordOutput("Lift/TargetVelocityInchesPerSecond", profiled_reference.velocity);
+
+        Logger::recordOutput("Lift/WantedState", std::to_string(static_cast<int>(wanted_state)));
+        Logger::recordOutput("Lift/SystemState", std::to_string(static_cast<int>(system_state)));
+        Logger::recordOutput("Lift/Homed", is_homed());
     }
 
     void set_wanted_state(WantedState state) {
@@ -259,6 +254,11 @@ namespace lift {
         return helpers::rotations_to_radians(averageMotorRPS / constants::lift::MECHANISM_REDUCTION);
     }
 
+    double get_linear_velocity() {
+        const double physical_angle = get_position() + constants::lift::MECHANISM_HOMING_ANGLE;
+        return constants::lift::ARM_LENGTH_DR4B * std::cos(physical_angle) * get_velocity();
+    }
+
     bool is_homed() {
         return homed;
     }
@@ -281,9 +281,13 @@ namespace lift {
 
 
     void screen_subtask() {
-	    ez::screen_print("Wanted State: " + wanted_state_to_string(wanted_state), 1);
-	    ez::screen_print("System State: " + system_state_to_string(system_state), 2);
+	    ez::screen_print("Wanted State: " + static_cast<int>(wanted_state), 1);
+	    ez::screen_print("System State: " + static_cast<int>(system_state), 2);
 
         ez::screen_print("Lift Voltage: " + util::to_string_with_precision(globals::lift_motors.get_voltage()), 4);
+        ez::screen_print("Target Height: " + util::to_string_with_precision(goal_reference.position), 5);
+        ez::screen_print("Current Height: " + util::to_string_with_precision(get_current_height()), 6);
+        ez::screen_print("Current Velocity: " + util::to_string_with_precision(get_linear_velocity()), 7);
+        ez::screen_print("Target Velocity: " + util::to_string_with_precision(profiled_reference.velocity), 8);
     }
 }

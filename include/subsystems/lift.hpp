@@ -3,9 +3,9 @@
 #include "helpers.hpp"
 #include "globals.hpp"
 #include "constants.hpp"
-#include "utilities/motion_profiler.hpp"
-#include "utilities/arm_feedforward.hpp"
-#include "utilities/pid.hpp"
+#include "utilities/controls/motion_profiler.hpp"
+#include "utilities/controls/arm_feedforward.hpp"
+#include "utilities/controls/pid.hpp"
 
 #include <cmath>
 #include <cstdint>
@@ -37,6 +37,7 @@ namespace lift {
 
     double get_position();
     double get_velocity();
+    double get_linear_velocity();
 
     bool is_homed();
     bool at_setpoint();
