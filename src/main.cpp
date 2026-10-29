@@ -2,6 +2,7 @@
 #include "subsystems/drivetrain.hpp"
 #include "subsystems/lift.hpp"
 #include "subsystems/intake.hpp"
+#include "utilities/logger.hpp"
 
 /**
  * Runs initialization code. This occurs as soon as the program is started.
@@ -14,6 +15,7 @@ void initialize() {
 
   pros::delay(500);  // Stop the user from doing anything while legacy ports configure
 
+  utilities::Logger::initialize();
   pros::lcd::initialize();
   drivetrain::initialize();
   lift::initialize();
@@ -55,7 +57,9 @@ void initialize() {
  * the robot is enabled, this task will exit.
  */
 void disabled() {
-  // . . .
+  if (!utilities::Logger::stop()) {
+    std::printf("Logger: Failed to close recording\n");
+  }
 }
 
 /**
@@ -151,6 +155,7 @@ void opcontrol() {
     drivetrain::set_behavior(drivetrain::Behavior::SPLIT_ARCADE);
 
     double milli_volts = 0.0;
+    utilities::Logger::start("practice");
 
     while (true) {
       if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) {
