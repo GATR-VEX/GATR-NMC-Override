@@ -242,6 +242,7 @@ void ez_template_extras() {
  */
 void opcontrol() {
     pros::Controller master(pros::E_CONTROLLER_MASTER);
+    inline pros::MotorGroup lift({-11, 12}); // Negative port reverses that motor
     //pros::MotorGroup drive({7, -18, 19, -20}); //ports 17 and 19 are normal, ports 18 and 20 are reversed
     while (true) {
 
