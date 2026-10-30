@@ -9,8 +9,8 @@
 // Chassis constructor, need to change values
 ez::Drive chassis(
     // These are your drive motors, the first motor is used for sensing!
-    {-5, -6, -7, -8},  // Left Chassis Ports (negative port will reverse it!)
-    {11, 15, 16, 17},  // Right Chassis Ports (negative port will reverse it!)
+    {-19, -20},  // Left Chassis Ports Front/Back(negative port will reverse it!)
+    {12, 11},  // Right Chassis Ports Front/Back(negative port will reverse it!)
 
     21,      // IMU Port
     4.125,   // Wheel Diameter (Remember, 4" wheels without screw holes are actually 4.125!)
@@ -263,7 +263,9 @@ void opcontrol() {
     // . . .
 
     //change controller ports as needed!
+
     //intake control
+    /* Intake No longer used.
     if(master.get_digital(DIGITAL_L1)){
       intake.move(127);
     }
@@ -273,6 +275,8 @@ void opcontrol() {
     else{
       intake.move(0);
     }
+      */
+
     // Lift control
     if(master.get_digital(DIGITAL_UP)){
       liftPID.target_set(500);
