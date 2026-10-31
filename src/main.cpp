@@ -13,8 +13,8 @@ ez::Drive chassis(
     {12, 11},  // Right Chassis Ports Front/Back(negative port will reverse it!)
 
     21,      // IMU Port
-    4.125,   // Wheel Diameter (Remember, 4" wheels without screw holes are actually 4.125!)
-    420.0);  // Wheel RPM = cartridge * (motor gear / wheel gear)
+    3.25,   // Wheel Diameter (Remember, 4" wheels without screw holes are actually 4.125!)
+    200.0);  // Wheel RPM = cartridge * (motor gear / wheel gear)
 
 // Uncomment the trackers you're using here!
 // - `8` and `9` are smart ports (making these negative will reverse the sensor)
@@ -24,13 +24,13 @@ ez::Drive chassis(
 // ez::tracking_wheel horiz_tracker(8, 2.75, 4.0);  // This tracking wheel is perpendicular to the drive wheels
 // ez::tracking_wheel vert_tracker(9, 2.75, 4.0);   // This tracking wheel is parallel to the drive wheels
 
-pros::Task Lift_task(liftTask); //can be removed if causing issues
+//pros::Task Lift_task(liftTask); //can be removed if causing issues
 /**
  * Runs initialization code. This occurs as soon as the program is started.
  *
  * All other competition modes are blocked by initialize; it is recommended
  * to keep execution time for this mode under a few seconds.
- */\
+ */
 void initialize() {
   // Print our branding over your terminal :D
   ez::ez_template_print();
@@ -48,7 +48,7 @@ void initialize() {
 
   // Configure your chassis controls
   chassis.opcontrol_curve_buttons_toggle(true);   // Enables modifying the controller curve with buttons on the joysticks
-  chassis.opcontrol_drive_activebrake_set(2.0);   // Sets the active brake kP. We recommend ~2.  0 will disable.
+  chassis.opcontrol_drive_activebrake_set(0.0);   // Sets the active brake kP. We recommend ~2.  0 will disable.
   chassis.opcontrol_curve_default_set(0.0, 0.0);  // Defaults for curve. If using tank, only the first parameter is used. (Comment this line out if you have an SD card!)
 
   // Set the drive to your own constants from autons.cpp!
@@ -80,7 +80,8 @@ void initialize() {
   chassis.initialize();
   ez::as::initialize();
   lift.tare_position();
-  liftPID.exit_condition_set(80,50,300,150,500,500); //will need to change
+  lift.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+  //liftPID.exit_condition_set(80,50,300,150,500,500); //will need to change
   master.rumble(chassis.drive_imu_calibrated() ? "." : "---");
 }
 
@@ -244,6 +245,52 @@ void ez_template_extras() {
  * task, not resume it from where it left off.
  */
 int countController = 0;
+const double LIFT_MIN = 0;
+const double LIFT_MAX = 300;
+
+static int lift_speed_limit(double limit_distance, double slow_zone, double min_speed) {
+  if(limit_distance <= 0) return 0; //Stop at limit
+  if(limit_distance >= slow_zone) return 127; //Full speed
+  return (int)(min_speed + (127 - min_speed) * (limit_distance / slow_zone)); //Scale speed between min_speed and 127
+}
+
+void liftControl() {
+  const double LIFT_MIN   = 20;      // bottom limit
+  const double LIFT_MAX   = 1600;   // top limit
+  const double SLOW_ZONE  = 250;    // distance from each end where slowing begins
+  const int    MIN_SPEED  = 20;     // Speed in slow zone
+  const int    RAMP_STEP  = 10;     // change per loop; lower = smoother
+
+  static int lift_cmd = 0;  // current command, persists between loops
+  int lift_target = 0;
+
+  if (master.get_digital(DIGITAL_R1)) {
+    lift_target = 127;
+  } 
+  else if (master.get_digital(DIGITAL_R2)) {
+    lift_target = -30;
+  }
+
+  double position = lift.get_position();
+  int up_max   = lift_speed_limit(LIFT_MAX - position, SLOW_ZONE, MIN_SPEED);
+  int down_max = lift_speed_limit(position - LIFT_MIN, SLOW_ZONE, MIN_SPEED);
+
+  // Clamp the target to limits
+  lift_target = std::clamp(lift_target, -down_max, up_max);
+
+  // ---- Ramp toward target ----
+  if (lift_cmd < lift_target) {
+    lift_cmd = std::min(lift_cmd + RAMP_STEP, lift_target);
+  } else if (lift_cmd > lift_target) {
+    lift_cmd = std::max(lift_cmd - RAMP_STEP, lift_target);
+  }
+
+  lift.move(lift_cmd);
+
+}
+
+
+
 void opcontrol() {
   // This is preference to what you like to drive on
   chassis.drive_brake_set(MOTOR_BRAKE_COAST);
@@ -262,21 +309,6 @@ void opcontrol() {
     // Put more user control code here!
     // . . .
 
-    //change controller ports as needed!
-
-    //intake control
-    /* Intake No longer used.
-    if(master.get_digital(DIGITAL_L1)){
-      intake.move(127);
-    }
-    else if(master.get_digital(DIGITAL_L2)){
-      intake.move(-127);
-    }
-    else{
-      intake.move(0);
-    }
-      */
-
       /*
     // Lift control
     if(master.get_digital(DIGITAL_UP)){
@@ -290,17 +322,20 @@ void opcontrol() {
     }
     countController++;
     //tilt control
-    if(master.get_digital(DIGITAL_R1)){
+    if(master.get_digital(DIGITAL_L1)){
       tilt.move(127);
     }
-    else if(master.get_digital(DIGITAL_R2)){
+    else if(master.get_digital(DIGITAL_L2)){
       tilt.move(-127);
     }
     else{
       tilt.move(0);
     }
     piston.button_toggle(master.get_digital(DIGITAL_Y)); //claw control
+    */
+
+    liftControl(); //Manual lift control
+
     pros::delay(ez::util::DELAY_TIME);  // This is used for timer calculations!  Keep this ez::util::DELAY_TIME
   }
-    */
 }

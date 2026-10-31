@@ -390,5 +390,7 @@ void liftTask(){
   pros::delay(2000);
   while(true){
     set_lift(liftPID.compute(lift.get_position()));
+
+    pros::delay(20);
   } 
 }
