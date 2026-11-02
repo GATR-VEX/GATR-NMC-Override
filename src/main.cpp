@@ -246,11 +246,6 @@ void ez_template_extras() {
  * operator control task will be stopped. Re-enabling the robot will restart the
  * task, not resume it from where it left off.
  */
-// Lift control constants and functions
-int countController = 0;
-const double LIFT_MIN = 0;
-const double LIFT_MAX = 300;
-
 //Height limits with slow zone
 static int lift_speed_limit(double limit_distance, double slow_zone, double min_speed) {
   if(limit_distance <= 0) return 0; //Stop at limit
@@ -261,9 +256,6 @@ static int lift_speed_limit(double limit_distance, double slow_zone, double min_
 //Cascade lift controls
 void liftControl() {
   const double LIFT_MIN   = 20;      // bottom limit
-
-  //const double LIFT_MAX   = 900;   // Change after wire replacement!!!!!!!
-
   const double LIFT_MAX   = 1600;   // top limit
   const double SLOW_ZONE  = 250;    // distance from each end where slowing begins
   const int    MIN_SPEED  = 20;     // Speed in slow zone
@@ -298,7 +290,7 @@ void liftControl() {
 }
 
 void tiltControl() {
-  int tiltMax = 340;
+  int tiltMax = 345;
   int tiltMin = 0;
 
   if(master.get_digital(DIGITAL_L1) && tilt.get_position() < tiltMax){
@@ -308,13 +300,13 @@ void tiltControl() {
       tilt.move(-30);
     }
     else if(master.get_digital(DIGITAL_RIGHT)){
-      tilt.move_absolute(220,30); //Scoring Position
+      tilt.move_absolute(200,50); //Scoring Position
     }
     else if (master.get_digital(DIGITAL_UP)){
-      tilt.move_absolute(320,30); //Slight-Up Position
+      tilt.move_absolute(340,50); //Up Position
     }
     else if (master.get_digital(DIGITAL_LEFT)){
-      tilt.move_absolute(125,30); //Cone Position
+      tilt.move_absolute(125,50); //Cone Position
     }
     else{
       tilt.brake();
