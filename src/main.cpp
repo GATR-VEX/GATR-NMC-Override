@@ -9,7 +9,7 @@
 // Chassis constructor, need to change values
 ez::Drive chassis(
     // These are your drive motors, the first motor is used for sensing!
-    {-19, -20},  // Left Chassis Ports Front/Back(negative port will reverse it!)
+    {-18, -19},  // Left Chassis Ports Front/Back(negative port will reverse it!)
     {12, 11},  // Right Chassis Ports Front/Back(negative port will reverse it!)
 
     21,      // IMU Port
@@ -35,7 +35,7 @@ void initialize() {
   // Print our branding over your terminal :D
   ez::ez_template_print();
 
-  pros::delay(500);  // Stop the user from doing anything while legacy ports configure
+  pros::delay(300);  // Stop the user from doing anything while legacy ports configure
 
   // Look at your horizontal tracking wheel and decide if it's in front of the midline of your robot or behind it
   //  - change `back` to `front` if the tracking wheel is in front of the midline
@@ -82,6 +82,8 @@ void initialize() {
   lift.tare_position();
   lift.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
   //liftPID.exit_condition_set(80,50,300,150,500,500); //will need to change
+  tilt.tare_position();
+  tilt.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
   master.rumble(chassis.drive_imu_calibrated() ? "." : "---");
 }
 
@@ -244,18 +246,24 @@ void ez_template_extras() {
  * operator control task will be stopped. Re-enabling the robot will restart the
  * task, not resume it from where it left off.
  */
+// Lift control constants and functions
 int countController = 0;
 const double LIFT_MIN = 0;
 const double LIFT_MAX = 300;
 
+//Height limits with slow zone
 static int lift_speed_limit(double limit_distance, double slow_zone, double min_speed) {
   if(limit_distance <= 0) return 0; //Stop at limit
   if(limit_distance >= slow_zone) return 127; //Full speed
   return (int)(min_speed + (127 - min_speed) * (limit_distance / slow_zone)); //Scale speed between min_speed and 127
 }
 
+//Cascade lift controls
 void liftControl() {
   const double LIFT_MIN   = 20;      // bottom limit
+
+  //const double LIFT_MAX   = 900;   // Change after wire replacement!!!!!!!
+
   const double LIFT_MAX   = 1600;   // top limit
   const double SLOW_ZONE  = 250;    // distance from each end where slowing begins
   const int    MIN_SPEED  = 20;     // Speed in slow zone
@@ -268,7 +276,7 @@ void liftControl() {
     lift_target = 127;
   } 
   else if (master.get_digital(DIGITAL_R2)) {
-    lift_target = -30;
+    lift_target = -40;
   }
 
   double position = lift.get_position();
@@ -287,6 +295,30 @@ void liftControl() {
 
   lift.move(lift_cmd);
 
+}
+
+void tiltControl() {
+  int tiltMax = 340;
+  int tiltMin = 0;
+
+  if(master.get_digital(DIGITAL_L1) && tilt.get_position() < tiltMax){
+      tilt.move(40);
+    }
+    else if(master.get_digital(DIGITAL_L2) && tilt.get_position() > tiltMin){
+      tilt.move(-30);
+    }
+    else if(master.get_digital(DIGITAL_RIGHT)){
+      tilt.move_absolute(220,30); //Scoring Position
+    }
+    else if (master.get_digital(DIGITAL_UP)){
+      tilt.move_absolute(320,30); //Slight-Up Position
+    }
+    else if (master.get_digital(DIGITAL_LEFT)){
+      tilt.move_absolute(125,30); //Cone Position
+    }
+    else{
+      tilt.brake();
+    }
 }
 
 
@@ -321,18 +353,12 @@ void opcontrol() {
       master.print(0, 0, "%lf", lift.get_position());
     }
     countController++;
-    //tilt control
-    if(master.get_digital(DIGITAL_L1)){
-      tilt.move(127);
-    }
-    else if(master.get_digital(DIGITAL_L2)){
-      tilt.move(-127);
-    }
-    else{
-      tilt.move(0);
-    }
-    piston.button_toggle(master.get_digital(DIGITAL_Y)); //claw control
     */
+
+
+    piston.button_toggle(master.get_digital(pros::E_CONTROLLER_DIGITAL_X)); //Claw control
+
+    tiltControl(); //Manual tilt control
 
     liftControl(); //Manual lift control
 
