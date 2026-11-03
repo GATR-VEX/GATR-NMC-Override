@@ -260,7 +260,7 @@ pros::MotorGroup lift({-11, 12}); // Negative port reverses that motor
 
 void opcontrol() {
     //pros::MotorGroup drive({7, -18, 19, -20}); //ports 17 and 19 are normal, ports 18 and 20 are reversed
-    //while (true) {
+    while (true) {
         //ez_template_extras();
 
         //chassis.opcontrol_tank();  // Tank control
