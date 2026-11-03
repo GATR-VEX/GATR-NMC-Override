@@ -25,6 +25,17 @@ ez::Drive chassis(
 // ez::tracking_wheel vert_tracker(9, 2.75, 4.0);   // This tracking wheel is parallel to the drive wheels
 
 //pros::Task Lift_task(liftTask); //can be removed if causing issues
+
+//Quick lift height initializer to find and set 0; do NOT run in another while with other functions because it has its own while
+void liftInit() {
+  lift.move(20); //rotates lift until significant power is drawn (string is taught)
+  while ((lift.get_power(0) + lift.get_power(1))/2 < 0.5) {
+    pros::delay(10);
+  }
+  lift.tare_position();
+  lift.move(0);
+}
+
 /**
  * Runs initialization code. This occurs as soon as the program is started.
  *
@@ -79,11 +90,11 @@ void initialize() {
   // Initialize chassis and auton selector
   chassis.initialize();
   ez::as::initialize();
-  lift.tare_position();
+  
+  liftInit(); //sets lift strings taught
   lift.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
   //liftPID.exit_condition_set(80,50,300,150,500,500); //will need to change
-  tilt.tare_position();
-  tilt.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+  
   master.rumble(chassis.drive_imu_calibrated() ? "." : "---");
 }
 
@@ -233,19 +244,6 @@ void ez_template_extras() {
   }
 }
 
-/**
- * Runs the operator control code. This function will be started in its own task
- * with the default priority and stack size whenever the robot is enabled via
- * the Field Management System or the VEX Competition Switch in the operator
- * control mode.
- *
- * If no competition control is connected, this function will run immediately
- * following initialize().
- *
- * If the robot is disabled or communications is lost, the
- * operator control task will be stopped. Re-enabling the robot will restart the
- * task, not resume it from where it left off.
- */
 //Height limits with slow zone
 static int lift_speed_limit(double limit_distance, double slow_zone, double min_speed) {
   if(limit_distance <= 0) return 0; //Stop at limit
@@ -254,7 +252,7 @@ static int lift_speed_limit(double limit_distance, double slow_zone, double min_
 }
 
 //Cascade lift controls
-void liftControl() {
+void liftControl(int target_voltage) {
   const double LIFT_MIN   = 20;      // bottom limit
   const double LIFT_MAX   = 1600;   // top limit
   const double SLOW_ZONE  = 250;    // distance from each end where slowing begins
@@ -262,27 +260,19 @@ void liftControl() {
   const int    RAMP_STEP  = 10;     // change per loop; lower = smoother
 
   static int lift_cmd = 0;  // current command, persists between loops
-  int lift_target = 0;
-
-  if (master.get_digital(DIGITAL_R1)) {
-    lift_target = 127;
-  } 
-  else if (master.get_digital(DIGITAL_R2)) {
-    lift_target = -40;
-  }
 
   double position = lift.get_position();
   int up_max   = lift_speed_limit(LIFT_MAX - position, SLOW_ZONE, MIN_SPEED);
   int down_max = lift_speed_limit(position - LIFT_MIN, SLOW_ZONE, MIN_SPEED);
 
   // Clamp the target to limits
-  lift_target = std::clamp(lift_target, -down_max, up_max);
+  target_voltage = std::clamp(target_voltage, -down_max, up_max);
 
   // ---- Ramp toward target ----
-  if (lift_cmd < lift_target) {
-    lift_cmd = std::min(lift_cmd + RAMP_STEP, lift_target);
-  } else if (lift_cmd > lift_target) {
-    lift_cmd = std::max(lift_cmd - RAMP_STEP, lift_target);
+  if (lift_cmd < target_voltage) {
+    lift_cmd = std::min(lift_cmd + RAMP_STEP, target_voltage);
+  } else if (lift_cmd > target_voltage) {
+    lift_cmd = std::max(lift_cmd - RAMP_STEP, target_voltage);
   }
 
   lift.move(lift_cmd);
@@ -296,24 +286,72 @@ void tiltControl() {
   if(master.get_digital(DIGITAL_L1) && tilt.get_position() < tiltMax){
       tilt.move(40);
     }
-    else if(master.get_digital(DIGITAL_L2) && tilt.get_position() > tiltMin){
+  else if(master.get_digital(DIGITAL_L2) && tilt.get_position() > tiltMin) {
       tilt.move(-30);
     }
-    else if(master.get_digital(DIGITAL_RIGHT)){
-      tilt.move_absolute(200,50); //Scoring Position
+  else if(master.get_digital(DIGITAL_RIGHT)) {
+      tilt.move_absolute(200,50); //Scoring Position (level)
     }
-    else if (master.get_digital(DIGITAL_UP)){
-      tilt.move_absolute(340,50); //Up Position
+  else if (master.get_digital(DIGITAL_UP)) {
+      tilt.move_absolute(340,50); //Up Position 
     }
-    else if (master.get_digital(DIGITAL_LEFT)){
-      tilt.move_absolute(125,50); //Cone Position
+  else if (master.get_digital(DIGITAL_LEFT)) {
+      tilt.move_absolute(125,50); //Cone Position (angled down)
     }
-    else{
+  else {
       tilt.brake();
     }
 }
 
+//(**not tested yet) Simple grabbing macro to tilt wrist down onto pin and grab shortly after
+void grabMacro() {
+  tilt.move_absolute(200, 50);
+  if (tilt.get_position() < 205) { //clamps once wrist is at desired angle
+    piston.set(true);
+    tilt.move(0);
+  } 
+}
 
+//(**not tested yet) Simple scoring macro to drop cup on stack, lift up, and automatically tilt wrist up
+//Potential for implementing an automatic lift lowering back to grabbing height after sensors detect bot moving away from stack
+
+//later should use while loops and delay inside of a separate task to avoid weird if structures
+void scoreMacro() {
+  static bool contact = false;
+  static int target = 0;
+  static bool targetSet = false;
+
+  if (!contact && (lift.get_power(0) + lift.get_power(1))/2 > 0.5) { //**need to tune value here for power when it hits stack
+    liftControl(-40); //lowers lift until cup contacts stack and power dips
+  } else if (!contact) {
+    liftControl(0);
+    contact = true;
+  }
+  
+  if (contact) {
+    if (!targetSet) {
+      target = lift.get_position() + 200;
+      targetSet = true;
+    }
+  
+    piston.set(false);
+
+    if (targetSet && abs(lift.get_position() - target) < 10) { //basically move.absolute() but with liftControl()
+      liftControl(0); 
+      target = 1600; //max height just in case some bug happens so it still goes up regardless
+      targetSet = false;
+    } else if (targetSet){
+      liftControl(127); //probably overshoots but whatev its not a precise target
+    }
+
+    tilt.move_absolute(340, 50);
+  }
+  
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// OP CONTROL //////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void opcontrol() {
   // This is preference to what you like to drive on
@@ -325,15 +363,12 @@ void opcontrol() {
 
     //chassis.opcontrol_tank();  // Tank control
      chassis.opcontrol_arcade_standard(ez::SPLIT);   // Standard split arcade
+    
     // chassis.opcontrol_arcade_standard(ez::SINGLE);  // Standard single arcade
     // chassis.opcontrol_arcade_flipped(ez::SPLIT);    // Flipped split arcade
     // chassis.opcontrol_arcade_flipped(ez::SINGLE);   // Flipped single arcade
 
-    // . . .
-    // Put more user control code here!
-    // . . .
-
-      /*
+    /*
     // Lift control
     if(master.get_digital(DIGITAL_UP)){
       liftPID.target_set(500);
@@ -351,8 +386,13 @@ void opcontrol() {
     piston.button_toggle(master.get_digital(pros::E_CONTROLLER_DIGITAL_X)); //Claw control
 
     tiltControl(); //Manual tilt control
-
-    liftControl(); //Manual lift control
+  
+    if (master.get_digital(DIGITAL_R1)) { //uses lift control to slew movement
+    liftControl(127);
+    } 
+    else if (master.get_digital(DIGITAL_R2)) {
+    liftControl(-40);
+    }
 
     pros::delay(ez::util::DELAY_TIME);  // This is used for timer calculations!  Keep this ez::util::DELAY_TIME
   }
