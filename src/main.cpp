@@ -261,14 +261,14 @@ pros::MotorGroup lift({-11, 12}); // Negative port reverses that motor
 void opcontrol() {
     //pros::MotorGroup drive({7, -18, 19, -20}); //ports 17 and 19 are normal, ports 18 and 20 are reversed
     while (true) {
-        //ez_template_extras();
+        ez_template_extras();
 
-        //chassis.opcontrol_tank();  // Tank control
+        chassis.opcontrol_tank();  // Tank control
         
-      //if (master.get_digital(DIGITAL_L1)) {
-        //liftPID.target_set(5000);
+      //if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
+        //liftPID.target_set(700);
       //}
-      //else if (master.get_digital(DIGITAL_L2)) {
+      //else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
         //liftPID.target_set(0);
       //}
       //set_lift(liftPID.compute(lift.get_position()));
