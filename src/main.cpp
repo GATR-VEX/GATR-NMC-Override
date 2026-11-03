@@ -36,6 +36,10 @@ void initialize() {
 
   pros::delay(500);  // Stop the user from doing anything while legacy ports configure
 
+  lift.tare_position();
+
+  ////claw.tare_position();
+
   // Look at your horizontal tracking wheel and decide if it's in front of the midline of your robot or behind it
   //  - change `back` to `front` if the tracking wheel is in front of the midline
   //  - ignore this if you aren't using a horizontal tracker
@@ -240,16 +244,37 @@ void ez_template_extras() {
  * operator control task will be stopped. Re-enabling the robot will restart the
  * task, not resume it from where it left off.
  */
+
+//void lift_task() {
+  //pros::delay(2000);  // Set EZ-Template calibrate before this function starts running
+  //while (true) {
+    //set_lift(liftPID.compute(lift.get_position()));
+
+    //pros::delay(ez::util::DELAY_TIME);
+  //}
+//}
+//pros::Task Lift_Task(lift_task);  // Create the task, this will cause the function to start running
+
 pros::Controller master(pros::E_CONTROLLER_MASTER);
 pros::MotorGroup lift({-11, 12}); // Negative port reverses that motor
-    
+
 void opcontrol() {
     //pros::MotorGroup drive({7, -18, 19, -20}); //ports 17 and 19 are normal, ports 18 and 20 are reversed
-    while (true) {
-        ez_template_extras();
+    //while (true) {
+        //ez_template_extras();
 
-        chassis.opcontrol_tank();  // Tank control
+        //chassis.opcontrol_tank();  // Tank control
         
+      //if (master.get_digital(DIGITAL_L1)) {
+        //liftPID.target_set(5000);
+      //}
+      //else if (master.get_digital(DIGITAL_L2)) {
+        //liftPID.target_set(0);
+      //}
+      //set_lift(liftPID.compute(lift.get_position()));
+
+
+
         if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
             lift.move(75); //lift up at max power
         }
@@ -259,7 +284,6 @@ void opcontrol() {
         else {
             lift.move(0); //stop lift
         }
-
         pros::delay(20);
     }
 }

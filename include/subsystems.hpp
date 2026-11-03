@@ -4,8 +4,17 @@
 #include "api.h"
 
 extern Drive chassis;
+
 extern pros::Controller master;
 extern pros::MotorGroup lift;
+extern pros::Motor claw;
+
+
+inline void set_lift(int input) {
+  lift.move(input);
+}
+
+inline ez::PID liftPID{0.45, 0, 0, 0, "Lift"};
 
 // Your motors, sensors, etc. should go here.  Below are examples
 // inline pros::Motor intake(1);
