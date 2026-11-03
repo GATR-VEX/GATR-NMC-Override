@@ -6,35 +6,7 @@
 // https://ez-robotics.github.io/EZ-Template/
 /////
 
-// Chassis constructor, need to change values
-ez::Drive chassis(
-    // These are your drive motors, the first motor is used for sensing!
-    {-18, -19},  // Left Chassis Ports Front/Back(negative port will reverse it!)
-    {12, 11},  // Right Chassis Ports Front/Back(negative port will reverse it!)
 
-    21,      // IMU Port
-    3.25,   // Wheel Diameter (Remember, 4" wheels without screw holes are actually 4.125!)
-    200.0);  // Wheel RPM = cartridge * (motor gear / wheel gear)
-
-// Uncomment the trackers you're using here!
-// - `8` and `9` are smart ports (making these negative will reverse the sensor)
-//  - you should get positive values on the encoders going FORWARD and RIGHT
-// - `2.75` is the wheel diameter
-// - `4.0` is the distance from the center of the wheel to the center of the robot
-// ez::tracking_wheel horiz_tracker(8, 2.75, 4.0);  // This tracking wheel is perpendicular to the drive wheels
-// ez::tracking_wheel vert_tracker(9, 2.75, 4.0);   // This tracking wheel is parallel to the drive wheels
-
-//pros::Task Lift_task(liftTask); //can be removed if causing issues
-
-//Quick lift height initializer to find and set 0; do NOT run in another while with other functions because it has its own while
-void liftInit() {
-  lift.move(20); //rotates lift until significant power is drawn (string is taught)
-  while ((lift.get_power(0) + lift.get_power(1))/2 < 0.5) {
-    pros::delay(10);
-  }
-  lift.tare_position();
-  lift.move(0);
-}
 
 /**
  * Runs initialization code. This occurs as soon as the program is started.
@@ -244,111 +216,6 @@ void ez_template_extras() {
   }
 }
 
-//Height limits with slow zone
-static int lift_speed_limit(double limit_distance, double slow_zone, double min_speed) {
-  if(limit_distance <= 0) return 0; //Stop at limit
-  if(limit_distance >= slow_zone) return 127; //Full speed
-  return (int)(min_speed + (127 - min_speed) * (limit_distance / slow_zone)); //Scale speed between min_speed and 127
-}
-
-//Cascade lift controls
-void liftControl(int target_voltage) {
-  const double LIFT_MIN   = 20;      // bottom limit
-  const double LIFT_MAX   = 1600;   // top limit
-  const double SLOW_ZONE  = 250;    // distance from each end where slowing begins
-  const int    MIN_SPEED  = 20;     // Speed in slow zone
-  const int    RAMP_STEP  = 10;     // change per loop; lower = smoother
-
-  static int lift_cmd = 0;  // current command, persists between loops
-
-  double position = lift.get_position();
-  int up_max   = lift_speed_limit(LIFT_MAX - position, SLOW_ZONE, MIN_SPEED);
-  int down_max = lift_speed_limit(position - LIFT_MIN, SLOW_ZONE, MIN_SPEED);
-
-  // Clamp the target to limits
-  target_voltage = std::clamp(target_voltage, -down_max, up_max);
-
-  // ---- Ramp toward target ----
-  if (lift_cmd < target_voltage) {
-    lift_cmd = std::min(lift_cmd + RAMP_STEP, target_voltage);
-  } else if (lift_cmd > target_voltage) {
-    lift_cmd = std::max(lift_cmd - RAMP_STEP, target_voltage);
-  }
-
-  lift.move(lift_cmd);
-
-}
-
-void tiltControl() {
-  int tiltMax = 345;
-  int tiltMin = 0;
-
-  if(master.get_digital(DIGITAL_L1) && tilt.get_position() < tiltMax){
-      tilt.move(40);
-    }
-  else if(master.get_digital(DIGITAL_L2) && tilt.get_position() > tiltMin) {
-      tilt.move(-30);
-    }
-  else if(master.get_digital(DIGITAL_RIGHT)) {
-      tilt.move_absolute(200,50); //Scoring Position (level)
-    }
-  else if (master.get_digital(DIGITAL_UP)) {
-      tilt.move_absolute(340,50); //Up Position 
-    }
-  else if (master.get_digital(DIGITAL_LEFT)) {
-      tilt.move_absolute(125,50); //Cone Position (angled down)
-    }
-  else {
-      tilt.brake();
-    }
-}
-
-//(**not tested yet) Simple grabbing macro to tilt wrist down onto pin and grab shortly after
-void grabMacro() {
-  tilt.move_absolute(200, 50);
-  if (tilt.get_position() < 205) { //clamps once wrist is at desired angle
-    piston.set(true);
-    tilt.move(0);
-  } 
-}
-
-//(**not tested yet) Simple scoring macro to drop cup on stack, lift up, and automatically tilt wrist up
-//Potential for implementing an automatic lift lowering back to grabbing height after sensors detect bot moving away from stack
-
-//later should use while loops and delay inside of a separate task to avoid weird if structures
-void scoreMacro() {
-  static bool contact = false;
-  static int target = 0;
-  static bool targetSet = false;
-
-  if (!contact && (lift.get_power(0) + lift.get_power(1))/2 > 0.5) { //**need to tune value here for power when it hits stack
-    liftControl(-40); //lowers lift until cup contacts stack and power dips
-  } else if (!contact) {
-    liftControl(0);
-    contact = true;
-  }
-  
-  if (contact) {
-    if (!targetSet) {
-      target = lift.get_position() + 200;
-      targetSet = true;
-    }
-  
-    piston.set(false);
-
-    if (targetSet && abs(lift.get_position() - target) < 10) { //basically move.absolute() but with liftControl()
-      liftControl(0); 
-      target = 1600; //max height just in case some bug happens so it still goes up regardless
-      targetSet = false;
-    } else if (targetSet){
-      liftControl(127); //probably overshoots but whatev its not a precise target
-    }
-
-    tilt.move_absolute(340, 50);
-  }
-  
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // OP CONTROL //////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -367,20 +234,6 @@ void opcontrol() {
     // chassis.opcontrol_arcade_standard(ez::SINGLE);  // Standard single arcade
     // chassis.opcontrol_arcade_flipped(ez::SPLIT);    // Flipped split arcade
     // chassis.opcontrol_arcade_flipped(ez::SINGLE);   // Flipped single arcade
-
-    /*
-    // Lift control
-    if(master.get_digital(DIGITAL_UP)){
-      liftPID.target_set(500);
-    }
-    else if(master.get_digital(DIGITAL_DOWN)){
-      liftPID.target_set(0);
-    }
-    if(!(countController%25)){
-      master.print(0, 0, "%lf", lift.get_position());
-    }
-    countController++;
-    */
 
 
     piston.button_toggle(master.get_digital(pros::E_CONTROLLER_DIGITAL_X)); //Claw control
