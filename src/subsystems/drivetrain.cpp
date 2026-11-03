@@ -1,4 +1,7 @@
 #include "subsystems/drivetrain.hpp"
+#include "utilities/logger.hpp"
+
+using utilities::Logger;
 
 namespace drivetrain {
     namespace {
@@ -87,6 +90,29 @@ namespace drivetrain {
 
             globals::chassis.pid_angle_behavior_set(ez::shortest); // Changes the default behavior for turning, this defaults it to the shortest path there
         }
+
+        void log_outputs() {
+            double max_temperature = 0.0;
+            double total_current = 0.0;
+
+            auto accumulate = [&](const std::vector<pros::Motor>& motors) {
+                for (const pros::Motor& motor : motors) {
+                    const double temperature = motor.get_temperature();
+                    if (std::isfinite(temperature)) max_temperature = std::max(max_temperature, temperature);
+
+                    const int32_t current = motor.get_current_draw();
+                    if (current != PROS_ERR) total_current += current;
+                }
+            };
+
+            accumulate(globals::chassis.left_motors);
+            accumulate(globals::chassis.right_motors);
+
+            Logger::recordOutput("Drivetrain/MaxTemperatureCelsius", max_temperature);
+            Logger::recordOutput("Drivetrain/TotalCurrentMilliamps", total_current);
+            Logger::recordOutput("Drivetrain/WantedState", static_cast<int>(wanted_state));
+            Logger::recordOutput("Drivetrain/SystemState", static_cast<int>(system_state));
+        }
     }
 
     void initialize() {
@@ -111,6 +137,17 @@ namespace drivetrain {
         wanted_state = WantedState::IDLE;
         system_state = SystemState::IDLING;
         current_behavior = Behavior::SPLIT_ARCADE;
+
+        const char* outputs[] = {
+            "Drivetrain/MaxTemperatureCelsius", 
+            "Drivetrain/TotalCurrentMilliamps",
+            "Drivetrain/WantedState", 
+            "Drivetrain/SystemState"
+        };
+
+        for (const char* name : outputs) {
+            Logger::registerOutput(name);
+        }
     }
 
     void prepare_teleop() {
@@ -127,6 +164,8 @@ namespace drivetrain {
     }
 
     void periodic() {
+        log_outputs();
+        
         system_state = handle_state_transition();
         apply_states();
     }
