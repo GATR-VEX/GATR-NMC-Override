@@ -11,4 +11,8 @@ namespace globals {
     // Intake
     pros::adi::Pneumatics piston('A', false);
     pros::Distance distance(21);
+
+    // Controller
+    pros::Controller primary(pros::E_CONTROLLER_MASTER);
+    pros::Controller secondary(pros::E_CONTROLLER_PARTNER);
 }

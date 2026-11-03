@@ -10,6 +10,7 @@ namespace drivetrain {
         double targetPositionY = 0.0;
     
         bool hasTargetPosition = false;
+        bool slow_mode_enabled = false;
 
         double get_robot_heading() {
             return globals::chassis.drive_imu_get();
@@ -86,34 +87,6 @@ namespace drivetrain {
 
             globals::chassis.pid_angle_behavior_set(ez::shortest); // Changes the default behavior for turning, this defaults it to the shortest path there
         }
-	
-	std::string wanted_state_to_string(WantedState state) {
-	    switch (state) {
-		case WantedState::IDLE:
-		    return "IDLE";
-		case WantedState::TELEOP_DRIVE:
-		    return "TELEOP_DRIVE";
-		case WantedState::DRIVE_TO_POINT:
-		    return "DRIVE_TO_POINT";
-	    }
-
-	    return "INDETERMINITE";
-	}
-
-	std::string system_state_to_string(SystemState state) {
-	    switch (state) {
-		case SystemState::IDLING:
-		    return "IDLING";
-		case SystemState::TELEOP_DRIVE:
-		    return "TELEOP_DRIVE";
-		case SystemState::DTP_ALIGNING:
-		    return "DTP_ALIGNING";
-	 	case SystemState::DTP_ALIGNED:
-		    return "DTP_ALIGNED";
-	    }
-
-	    return "INDETERMINITE";
-	} 
     }
 
     void initialize() {
@@ -179,6 +152,16 @@ namespace drivetrain {
         return current_behavior;
     }
 
+    void toggle_slow_mode() {
+        slow_mode_enabled = !slow_mode_enabled;
+
+        if (slow_mode_enabled) {
+            globals::chassis.opcontrol_speed_max_set(64);
+        } else {
+            globals::chassis.opcontrol_speed_max_set(127);
+        }
+    }
+
     bool is_imu_calibrating() {
         return globals::imu.is_calibrating();
     }
@@ -217,8 +200,8 @@ namespace drivetrain {
     void screen_subtask() {
         if (!globals::chassis.odom_enabled() || globals::chassis.pid_tuner_enabled()) return;
 
-	    ez::screen_print("System State: " + system_state_to_string(system_state), 1);
-	    ez::screen_print("Wanted State: " + wanted_state_to_string(wanted_state), 2);
+	    ez::screen_print("System State: " + std::to_string(static_cast<int>(system_state)), 1);
+	    ez::screen_print("Wanted State: " + std::to_string(static_cast<int>(wanted_state)), 2);
         ez::screen_print(
             "Pose Estimator | X: " + util::to_string_with_precision(globals::chassis.odom_x_get(), 4) +
             " | Y: " + util::to_string_with_precision(globals::chassis.odom_y_get(), 3) +

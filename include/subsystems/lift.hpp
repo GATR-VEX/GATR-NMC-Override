@@ -1,27 +1,24 @@
 #pragma once
 
-#include "helpers.hpp"
 #include "globals.hpp"
 #include "constants.hpp"
-#include "utilities/controls/motion_profiler.hpp"
-#include "utilities/controls/arm_feedforward.hpp"
-#include "utilities/controls/pid.hpp"
+#include "subsystems/lift_kinematics.hpp"
 
-#include <cmath>
 #include <cstdint>
-#include <optional>
 
 namespace lift {
     enum class WantedState {
         IDLE,
         HOME,
         MOVE_TO_POSITION,
+        PROFILE, // Only used to profile the lift during test sessions
     };
 
     enum class SystemState {
         IDLING,
         HOMING,
         MOVING_TO_POSITION,
+        PROFILING, // Only used to profile the lift during test sessions
     };
 
     void initialize();
@@ -33,14 +30,18 @@ namespace lift {
     SystemState get_system_state();
 
     void set_target_height(double height_inches);
+    double get_target_height();
     double get_current_height();
 
-    double get_position();
-    double get_velocity();
+    double get_angle();
+    double get_angular_velocity();
     double get_linear_velocity();
 
     bool is_homed();
     bool at_setpoint();
+
+    void adjust_profiling_voltage(double delta_volts);
+    double get_profiling_voltage();
 
     void screen_subtask();
 }

@@ -20,4 +20,8 @@ namespace globals {
     // Intake
     extern pros::adi::Pneumatics piston;
     extern pros::Distance distance;
+
+    // Controllers
+    extern pros::Controller primary;
+    extern pros::Controller secondary;
 }

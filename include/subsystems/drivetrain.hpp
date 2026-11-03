@@ -36,6 +36,8 @@ namespace drivetrain {
     void set_behavior(Behavior behavior);
     Behavior get_behavior();
 
+    void toggle_slow_mode();
+
     bool is_imu_calibrating();
     bool is_imu_calibrated();
 

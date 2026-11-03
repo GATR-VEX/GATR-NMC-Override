@@ -1,201 +1,364 @@
 #include "subsystems/lift.hpp"
+#include "utilities/controls/arm_feedforward.hpp"
+#include "utilities/controls/motion_profiler.hpp"
+#include "utilities/controls/pid.hpp"
 #include "utilities/logger.hpp"
+#include "constants.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <optional>
+#include <string>
+#include <vector>
 
 using utilities::Logger;
 
 namespace lift {
     namespace {
-        struct AngularReference {
-            double position;
-            double velocity;
-            double acceleration;
-        };
+        namespace k = constants::lift;
 
-        double radians_to_height(double radians) {
-            const double physical_angle = radians + constants::lift::MECHANISM_HOMING_ANGLE;
-            return constants::lift::ARM_LENGTH_DR4B * (std::sin(physical_angle) - std::sin(constants::lift::MECHANISM_HOMING_ANGLE));
-        }
-
-        double height_to_radians(double height_inches) {
-            return std::asin(height_inches / constants::lift::ARM_LENGTH_DR4B + std::sin(constants::lift::MECHANISM_HOMING_ANGLE)) - constants::lift::MECHANISM_HOMING_ANGLE;
-        }
-
-        AngularReference linear_to_angular_reference(double height_inches, double linear_velocity, double linear_acceleration) {
-            const double length = constants::lift::ARM_LENGTH_DR4B;
-            const double position = height_to_radians(height_inches);
-            const double physical_angle = position + constants::lift::MECHANISM_HOMING_ANGLE;
-            const double cosine = std::cos(physical_angle);
-            const double angular_velocity = linear_velocity / (length * cosine);
-            const double angular_acceleration = (linear_acceleration + length * std::sin(physical_angle) * angular_velocity * angular_velocity) / (length * cosine);
-
-            return {
-                position,
-                angular_velocity,
-                angular_acceleration
-            };
-        }
+        controls::PIDController controller(k::KP, 0.0, k::KD);
+        controls::ArmFeedforward feedforward(k::KS, k::KV, k::KG, k::KA);
+        controls::MotionProfiler profiler({k::MAXIMUM_VELOCITY_RADIANS_PER_SECOND, k::MAXIMUM_ACCELERATION_RADIANS_PER_SECOND_SQUARED});
 
         WantedState wanted_state = WantedState::IDLE;
+        WantedState state_after_homing = WantedState::IDLE;
         SystemState system_state = SystemState::IDLING;
-        SystemState next_system_state = SystemState::IDLING;
 
-        controls::PIDController controller = controls::PIDController(constants::lift::KP, 0.0, constants::lift::KD);
-        controls::ArmFeedforward feedforward = controls::ArmFeedforward(constants::lift::KS, constants::lift::KV, constants::lift::KG, constants::lift::KA);
-        controls::MotionProfiler motion_profiler = controls::MotionProfiler({
-            constants::lift::MAXIMUM_VELOCITY_INCHES_PER_SECOND,
-            constants::lift::MAXIMUM_ACCELERATION_INCHES_PER_SECOND_SQUARED
-        });
+        controls::MotionProfiler::State reference{k::MECHANISM_HOMING_ANGLE, 0.0};
+        controls::MotionProfiler::State goal{k::MECHANISM_HOMING_ANGLE, 0.0};
 
-        controls::MotionProfiler::State profiled_reference{};
-        controls::MotionProfiler::State goal_reference{};
+        double goal_height_inches = k::MECHANISM_HOMING_POSITION;
+        double measured_angle = k::MECHANISM_HOMING_ANGLE;
+        double measured_angular_velocity = 0.0;
+
+        bool measurement_valid = false;
+        bool needs_resync = false;
+
+        double output_volts = 0.0;
+        double feedforward_volts = 0.0;
+        double feedback_volts = 0.0;
+        double test_voltage = 0.0;
 
         bool homed = false;
+        uint32_t homing_start_ms = 0;
+        std::optional<uint32_t> stall_start_ms;
+        uint32_t last_control_ms = 0;
 
-        std::optional<uint32_t> home_timestamp;
-        uint32_t homing_start_timestamp = 0;
-        uint32_t last_motion_profiler_timestamp = 0;
-        
-        SystemState handle_state_transitsion() {
-            switch (wanted_state) {
-                case WantedState::HOME: {
-                    const uint32_t now = pros::millis();
+        template <typename T>
+        bool average_finite(const std::vector<T>& values, double& result) {
+            double sum = 0.0;
+            int count = 0;
 
-                    if (now - homing_start_timestamp >= constants::lift::HOMING_TIMEOUT_MS) {
-                        set_wanted_state(WantedState::IDLE);
-                        return SystemState::IDLING;
-                    }
-
-                    if (std::abs(get_velocity()) <= constants::lift::ZERO_VELOCITY_THRESHOLD) {
-                        if (!home_timestamp.has_value()) {
-                            home_timestamp = now;
-                            return SystemState::HOMING;
-                        }
-
-                        if (now - *home_timestamp >= constants::lift::ZERO_VELOCITY_TIME_MS) {
-                            globals::lift_motors.move(0);
-                            globals::lift_motors.tare_position_all();
-
-                            homed = true;
-                            home_timestamp.reset();
-
-                            set_wanted_state(WantedState::IDLE);
-                            return SystemState::IDLING;
-                        }
-                    } else {
-                        home_timestamp.reset();
-                    }
-
-                    return SystemState::HOMING;
+            for (const T value : values) {
+                if (std::isfinite(static_cast<double>(value))) {
+                    sum += static_cast<double>(value);
+                    ++count;
                 }
+            }
+
+            if (count == 0) return false;
+
+            result = sum / count;
+            return true;
+        }
+
+        double radians_to_degrees(double radians) {
+            return radians * 180.0 / constants::PI;
+        }
+
+        double hold_volts(double angle_radians) {
+            return k::KG * std::cos(angle_radians);
+        }
+
+        void update_measurements() {
+            double motor_rotations = 0.0;
+            double motor_rpm = 0.0;
+
+            const bool position_ok = average_finite(globals::lift_motors.get_position_all(), motor_rotations);
+            const bool velocity_ok = average_finite(globals::lift_motors.get_actual_velocity_all(), motor_rpm);
+
+            measurement_valid = position_ok && velocity_ok;
+            if (!measurement_valid) return;
+
+            measured_angle = kinematics::motor_rotations_to_angle(motor_rotations);
+            measured_angular_velocity = kinematics::motor_rpm_to_angular_velocity(motor_rpm);
+        }
+
+        void resync_reference() {
+            reference = {kinematics::clamp_angle(measured_angle), measured_angular_velocity};
+            controller.reset();
+        }
+
+        void begin_homing(WantedState after) {
+            homed = false;
+            stall_start_ms.reset();
+            homing_start_ms = pros::millis();
+            state_after_homing = (after == WantedState::HOME) ? WantedState::IDLE : after;
+            wanted_state = WantedState::HOME;
+        }
+
+        SystemState handle_state_transition();
+
+        SystemState update_homing() {
+            const uint32_t now = pros::millis();
+            const uint32_t elapsed = now - homing_start_ms;
+
+            if (elapsed >= k::HOMING_TIMEOUT_MS) {
+                std::printf("Lift: homing timed out\n");
+                wanted_state = WantedState::IDLE;
+                state_after_homing = WantedState::IDLE;
+                return SystemState::IDLING;
+            }
+
+            const bool stopped = elapsed >= k::HOMING_SPIN_UP_MS && measurement_valid && std::abs(measured_angular_velocity) <= k::ZERO_VELOCITY_THRESHOLD;
+
+            if (!stopped) {
+                stall_start_ms.reset();
+                return SystemState::HOMING;
+            }
+
+            if (!stall_start_ms.has_value()) {
+                stall_start_ms = now;
+            }
+
+            if (now - *stall_start_ms < k::ZERO_VELOCITY_TIME_MS) {
+                return SystemState::HOMING;
+            }
+
+            globals::lift_motors.tare_position_all();
+            measured_angle = k::MECHANISM_HOMING_ANGLE;
+            measured_angular_velocity = 0.0;
+            homed = true;
+            stall_start_ms.reset();
+            wanted_state = state_after_homing;
+            state_after_homing = WantedState::IDLE;
+
+            return handle_state_transition();
+        }
+
+        SystemState handle_state_transition() {
+            switch (wanted_state) {
                 case WantedState::IDLE:
                     return SystemState::IDLING;
+
+                case WantedState::HOME:
+                    return update_homing();
+
                 case WantedState::MOVE_TO_POSITION:
+                case WantedState::PROFILE:
                     if (!homed) {
-                        set_wanted_state(WantedState::HOME);
+                        begin_homing(wanted_state);
                         return SystemState::HOMING;
                     }
 
-                    return SystemState::MOVING_TO_POSITION;
+                    return wanted_state == WantedState::MOVE_TO_POSITION ? SystemState::MOVING_TO_POSITION  : SystemState::PROFILING;
             }
 
             return SystemState::IDLING;
         }
 
+        void on_enter(SystemState state) {
+            switch (state) {
+                case SystemState::MOVING_TO_POSITION:
+                    resync_reference();
+                    last_control_ms = pros::millis();
+                    break;
+
+                case SystemState::PROFILING:
+                    test_voltage = std::clamp(hold_volts(measured_angle), -k::PROFILING_VOLTAGE_LIMIT, k::PROFILING_VOLTAGE_LIMIT);
+                    break;
+
+                case SystemState::IDLING:
+                case SystemState::HOMING:
+                    break;
+            }
+        }
+
+        void command_volts(double volts) {
+            output_volts = std::clamp(volts, -12.0, 12.0);
+            globals::lift_motors.move_voltage(static_cast<int32_t>(std::lround(output_volts * 1000.0)));
+        }
+
+        void run_position_control() {
+            const uint32_t now = pros::millis();
+            double dt = (now - last_control_ms) / 1000.0;
+
+            if (dt <= 0.0) return;
+            last_control_ms = now;
+
+            if (!measurement_valid) {
+                feedforward_volts = 0.0;
+                feedback_volts = 0.0;
+                needs_resync = true;
+                command_volts(0.0);
+                return;
+            }
+
+            if (dt > constants::DT_SECONDS || needs_resync) {
+                resync_reference();
+                needs_resync = false;
+                dt = constants::DT_SECONDS;
+            }
+
+            const controls::MotionProfiler::State previous = reference;
+            reference = profiler.calculate(dt, previous, goal);
+            const double reference_acceleration = (reference.velocity - previous.velocity) / dt;
+
+            feedforward_volts = feedforward.calculate(reference.position, reference.velocity, reference_acceleration);
+            feedback_volts = controller.calculate(measured_angle, reference.position, dt);
+
+            const double volts = feedforward_volts + feedback_volts;
+
+            if (!std::isfinite(volts)) {
+                needs_resync = true;
+                command_volts(0.0);
+                return;
+            }
+
+            command_volts(volts);
+        }
+
         void apply_states() {
             switch (system_state) {
                 case SystemState::IDLING:
-                    globals::lift_motors.move(0.0);
+                    output_volts = 0.0;
+                    feedforward_volts = 0.0;
+                    feedback_volts = 0.0;
+                    globals::lift_motors.brake();
                     break;
+
                 case SystemState::HOMING:
-                    globals::lift_motors.move_voltage(constants::lift::HOMING_VOLTAGE);
+                    feedforward_volts = 0.0;
+                    feedback_volts = 0.0;
+                    command_volts(k::HOMING_VOLTAGE / 1000.0);
                     break;
+
+                case SystemState::PROFILING:
+                    feedforward_volts = 0.0;
+                    feedback_volts = 0.0;
+                    command_volts(test_voltage);
+                    break;
+
                 case SystemState::MOVING_TO_POSITION:
-                    const uint32_t now = pros::millis();
-                    const double dt = (now - last_motion_profiler_timestamp) / 1000.0;
-
-                    if (dt <= 0.0) return;
-                    last_motion_profiler_timestamp = now;
-
-                    if (dt > 0.1) {
-                        const double angle = get_position();
-                        const double physical_angle = angle + constants::lift::MECHANISM_HOMING_ANGLE;
-                        profiled_reference = {radians_to_height(angle), constants::lift::ARM_LENGTH_DR4B * std::cos(physical_angle) * get_velocity()};
-                        controller.reset();
-                        globals::lift_motors.move_voltage(0);
-                        return;
-                    }
-
-                    const auto previous_reference = profiled_reference;
-                    const auto next_reference = motion_profiler.calculate(dt, previous_reference, goal_reference);
-                    const double linear_acceleration = (next_reference.velocity - previous_reference.velocity) / dt;
-                    const AngularReference reference = linear_to_angular_reference(next_reference.position, next_reference.velocity, linear_acceleration);
-
-                    if (!std::isfinite(reference.position) || !std::isfinite(reference.velocity) || !std::isfinite(reference.acceleration) || std::abs(std::cos(reference.position + constants::lift::MECHANISM_HOMING_ANGLE)) < 0.1) {
-                        globals::lift_motors.move_voltage(0);
-                        return;
-                    }
-
-                    const double output = controller.calculate(get_position(), reference.position, dt) + feedforward.calculate(reference.position + constants::lift::MECHANISM_HOMING_ANGLE, reference.velocity, reference.acceleration);
-
-                    if (!std::isfinite(output)) {
-                        globals::lift_motors.move_voltage(0);
-                        return;
-                    }
-
-                    globals::lift_motors.move_voltage(static_cast<int>(std::clamp(output, -12.0, 12.0) * 1000.0));
-                    profiled_reference = next_reference;
+                    run_position_control();
                     break;
             }
+        }
+
+        const char* wanted_state_name(WantedState state) {
+            switch (state) {
+                case WantedState::IDLE: return "IDLE";
+                case WantedState::HOME: return "HOME";
+                case WantedState::MOVE_TO_POSITION: return "MOVE";
+                case WantedState::PROFILE: return "PROFILE";
+            }
+
+            return "?";
+        }
+
+        const char* system_state_name(SystemState state) {
+            switch (state) {
+                case SystemState::IDLING: return "IDLING";
+                case SystemState::HOMING: return "HOMING";
+                case SystemState::MOVING_TO_POSITION: return "MOVING";
+                case SystemState::PROFILING: return "PROFILING";
+            }
+
+            return "?";
+        }
+
+        void log_outputs() {
+            double max_temperature = 0.0;
+            double total_current = 0.0;
+
+            for (const double t : globals::lift_motors.get_temperature_all()) {
+                if (std::isfinite(t)) max_temperature = std::max(max_temperature, t);
+            }
+
+            for (const int32_t ma : globals::lift_motors.get_current_draw_all()) {
+                if (ma != PROS_ERR) total_current += ma;
+            }
+
+            Logger::recordOutput("Lift/CurrentHeightInches", get_current_height());
+            Logger::recordOutput("Lift/TargetHeightInches", goal_height_inches);
+            Logger::recordOutput("Lift/ReferenceHeightInches", kinematics::angle_to_height(reference.position));
+
+            Logger::recordOutput("Lift/AngleDegrees", radians_to_degrees(measured_angle));
+            Logger::recordOutput("Lift/ReferenceAngleDegrees", radians_to_degrees(reference.position));
+            Logger::recordOutput("Lift/GoalAngleDegrees", radians_to_degrees(goal.position));
+            Logger::recordOutput("Lift/CosAngle", std::cos(measured_angle));
+
+            Logger::recordOutput("Lift/AngularVelocityRadPerSecond", measured_angular_velocity);
+            Logger::recordOutput("Lift/ReferenceAngularVelocityRadPerSecond", reference.velocity);
+            Logger::recordOutput("Lift/LinearVelocityInchesPerSecond", get_linear_velocity());
+
+            Logger::recordOutput("Lift/OutputVoltage", output_volts);
+            Logger::recordOutput("Lift/FeedforwardVoltage", feedforward_volts);
+            Logger::recordOutput("Lift/FeedbackVoltage", feedback_volts);
+            Logger::recordOutput("Lift/ProfilingVoltage", test_voltage);
+
+            Logger::recordOutput("Lift/MaxTemperatureCelsius", max_temperature);
+            Logger::recordOutput("Lift/TotalCurrentMilliamps", total_current);
+
+            Logger::recordOutput("Lift/WantedState", static_cast<int>(wanted_state));
+            Logger::recordOutput("Lift/SystemState", static_cast<int>(system_state));
+            Logger::recordOutput("Lift/Homed", homed);
         }
     }
 
     void initialize() {
         globals::lift_motors.set_encoder_units_all(pros::E_MOTOR_ENCODER_ROTATIONS);
+        globals::lift_motors.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
 
-        Logger::registerOutput("Lift/CurrentHeightInches");
-        Logger::registerOutput("Lift/TargetHeightInches");
+        const char* outputs[] = {
+            "Lift/CurrentHeightInches", 
+            "Lift/TargetHeightInches", 
+            "Lift/ReferenceHeightInches",
+            "Lift/AngleDegrees", 
+            "Lift/ReferenceAngleDegrees", 
+            "Lift/GoalAngleDegrees", 
+            "Lift/CosAngle",
+            "Lift/AngularVelocityRadPerSecond", 
+            "Lift/ReferenceAngularVelocityRadPerSecond", 
+            "Lift/LinearVelocityInchesPerSecond",
+            "Lift/OutputVoltage", 
+            "Lift/FeedforwardVoltage", 
+            "Lift/FeedbackVoltage", 
+            "Lift/ProfilingVoltage",
+            "Lift/MaxTemperatureCelsius", 
+            "Lift/TotalCurrentMilliamps",
+            "Lift/WantedState", 
+            "Lift/SystemState", 
+            "Lift/Homed",
+        };
 
-        Logger::registerOutput("Lift/CurrentVelocityInchesPerSecond");
-        Logger::registerOutput("Lift/TargetVelocityInchesPerSecond");
-
-        Logger::registerOutput("Lift/WantedState");
-        Logger::registerOutput("Lift/SystemState");
-        Logger::registerOutput("Lift/Homed");
+        for (const char* name : outputs) {
+            Logger::registerOutput(name);
+        }
     }
 
     void periodic() {
-        next_system_state = handle_state_transitsion();
+        update_measurements();
 
-        if (next_system_state != system_state && next_system_state == SystemState::MOVING_TO_POSITION) {
-            controller.reset();
-            const double current_position = get_position();
-            const double physical_angle = current_position + constants::lift::MECHANISM_HOMING_ANGLE;
-            profiled_reference = {radians_to_height(current_position), constants::lift::ARM_LENGTH_DR4B * std::cos(physical_angle) * get_velocity()};
+        const SystemState next_state = handle_state_transition();
 
-            last_motion_profiler_timestamp = pros::millis();
+        if (next_state != system_state) {
+            on_enter(next_state);
         }
 
-        system_state = next_system_state;
+        system_state = next_state;
         apply_states();
-
-        Logger::recordOutput("Lift/CurrentHeightInches", radians_to_height(get_position()));
-        Logger::recordOutput("Lift/TargetHeightInches", goal_reference.position);
-
-        Logger::recordOutput("Lift/CurrentVelocityInchesPerSecond", (constants::lift::ARM_LENGTH_DR4B * std::cos(get_position() + constants::lift::MECHANISM_HOMING_ANGLE) * get_velocity()));
-        Logger::recordOutput("Lift/TargetVelocityInchesPerSecond", profiled_reference.velocity);
-
-        Logger::recordOutput("Lift/WantedState", static_cast<int>(wanted_state));
-        Logger::recordOutput("Lift/SystemState", static_cast<int>(system_state));
-        Logger::recordOutput("Lift/Homed", is_homed());
+        log_outputs();
     }
 
     void set_wanted_state(WantedState state) {
-        if (wanted_state == state) return;
+        if (state == wanted_state) return;
 
         if (state == WantedState::HOME) {
-            homed = false;
-            home_timestamp.reset();
-            homing_start_timestamp = pros::millis();
+            begin_homing(WantedState::IDLE);
+            return;
         }
 
         wanted_state = state;
@@ -211,83 +374,66 @@ namespace lift {
 
     void set_target_height(double height_inches) {
         if (!std::isfinite(height_inches)) return;
-        if (height_inches < constants::lift::MINIMUM_POSITION_INCHES || height_inches > constants::lift::MAXIMUM_POSITION_INCHES) return;
 
-        goal_reference = {height_inches, 0.0};
-        set_wanted_state(WantedState::MOVE_TO_POSITION);
+        goal = {kinematics::height_to_angle(height_inches), 0.0};
+        goal_height_inches = kinematics::angle_to_height(goal.position);
+
+        if (wanted_state == WantedState::HOME) {
+            state_after_homing = WantedState::MOVE_TO_POSITION;
+        } else {
+            set_wanted_state(WantedState::MOVE_TO_POSITION);
+        }
+    }
+
+    double get_target_height() {
+        return goal_height_inches;
     }
 
     double get_current_height() {
-        return radians_to_height(get_position());
+        return kinematics::angle_to_height(measured_angle);
     }
 
-    double get_position() {
-        vector<double> all_positions = globals::lift_motors.get_position_all();
-
-        if (all_positions.empty()) {
-            return 0.0;
-        }
-
-        double position_sum = 0.0;
-
-        for (double position: all_positions) {
-            position_sum += position;
-        }
-
-        return helpers::rotations_to_radians((position_sum / all_positions.size()) / constants::lift::MECHANISM_REDUCTION);
+    double get_angle() {
+        return measured_angle;
     }
 
-    double get_velocity() {
-        vector<double> all_velocities = globals::lift_motors.get_actual_velocity_all();
-
-        if (all_velocities.empty()) {
-            return 0.0;
-        }
-
-        double velocity_sum = 0.0;
-
-        for (double velocity: all_velocities) {
-            velocity_sum += velocity;
-        }
-
-        double averageMotorRPS = (velocity_sum / all_velocities.size()) / 60.0;
-        return helpers::rotations_to_radians(averageMotorRPS / constants::lift::MECHANISM_REDUCTION);
+    double get_angular_velocity() {
+        return measured_angular_velocity;
     }
 
     double get_linear_velocity() {
-        const double physical_angle = get_position() + constants::lift::MECHANISM_HOMING_ANGLE;
-        return constants::lift::ARM_LENGTH_DR4B * std::cos(physical_angle) * get_velocity();
+        return kinematics::angular_to_linear_velocity(measured_angle, measured_angular_velocity);
     }
 
     bool is_homed() {
         return homed;
     }
 
-    
     bool at_setpoint() {
-        if (!homed ||
-            system_state != SystemState::MOVING_TO_POSITION) {
+        if (!homed || !measurement_valid || system_state != SystemState::MOVING_TO_POSITION) {
             return false;
         }
 
-        const double angle = get_position();
-        const double physical_angle = angle + constants::lift::MECHANISM_HOMING_ANGLE;
-        const double current_height = radians_to_height(angle);
-        const double current_linear_velocity = constants::lift::ARM_LENGTH_DR4B * std::cos(physical_angle) * get_velocity();
-        const bool profile_finished = std::abs(profiled_reference.position - goal_reference.position) < 1e-4 && std::abs(profiled_reference.velocity) < 1e-4;
+        const bool profile_finished = reference.position == goal.position && reference.velocity == goal.velocity;
 
-        return profile_finished && std::abs(goal_reference.position - current_height) <= constants::lift::POSITION_TOLERENCE_INCHES && std::abs(current_linear_velocity) <= constants::lift::VELOCITY_TOLERENCE_INCHES_PER_SECOND;
+        return profile_finished && std::abs(goal_height_inches - get_current_height()) <= k::POSITION_TOLERENCE_INCHES && std::abs(get_linear_velocity()) <= k::VELOCITY_TOLERENCE_INCHES_PER_SECOND;
     }
 
+    void adjust_profiling_voltage(double delta_volts) {
+        if (system_state != SystemState::PROFILING || !std::isfinite(delta_volts)) return;
+        test_voltage = std::clamp(test_voltage + delta_volts, -k::PROFILING_VOLTAGE_LIMIT, k::PROFILING_VOLTAGE_LIMIT);
+    }
+
+    double get_profiling_voltage() {
+        return test_voltage;
+    }
 
     void screen_subtask() {
-	    ez::screen_print("Wanted State: " + std::to_string(static_cast<int>(wanted_state)), 1);
-	    ez::screen_print("System State: " + std::to_string(static_cast<int>(system_state)), 2);
-
-        ez::screen_print("Lift Voltage: " + util::to_string_with_precision(globals::lift_motors.get_voltage()), 4);
-        ez::screen_print("Target Height: " + util::to_string_with_precision(goal_reference.position), 5);
-        ez::screen_print("Current Height: " + util::to_string_with_precision(get_current_height()), 6);
-        ez::screen_print("Current Velocity: " + util::to_string_with_precision(get_linear_velocity()), 7);
-        ez::screen_print("Target Velocity: " + util::to_string_with_precision(profiled_reference.velocity), 8);
+        ez::screen_print(std::string("Lift: ") + wanted_state_name(wanted_state) + " -> " + system_state_name(system_state), 1);
+        ez::screen_print("Height: " + util::to_string_with_precision(get_current_height()) + " / " + util::to_string_with_precision(goal_height_inches) + " in", 2);
+        ez::screen_print("Angle: " + util::to_string_with_precision(radians_to_degrees(measured_angle), 1) + " deg  cos: " + util::to_string_with_precision(std::cos(measured_angle), 3), 3);
+        ez::screen_print("Velocity: " + util::to_string_with_precision(measured_angular_velocity) + " rad/s  ref " + util::to_string_with_precision(reference.velocity), 4);
+        ez::screen_print("Output: " + util::to_string_with_precision(output_volts) + util::to_string_with_precision(feedforward_volts) + util::to_string_with_precision(feedback_volts), 5);
+        ez::screen_print("Profiling Voltage: " + util::to_string_with_precision(test_voltage) + " / " + util::to_string_with_precision(hold_volts(measured_angle)), 6);
     }
 }
