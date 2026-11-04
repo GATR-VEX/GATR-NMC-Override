@@ -14,19 +14,19 @@ namespace constants {
     namespace lift {
         inline constexpr double KP = 50.0;
         inline constexpr double KD = 0.0;
-        inline constexpr double KS = 1.275;
+        inline constexpr double KS = 1.0;
         inline constexpr double KV = 0.0;
-        inline constexpr double KG = 0.875;
+        inline constexpr double KG = 0.5;
         inline constexpr double KA = 0.0;
 
         inline constexpr double ZERO_VELOCITY_THRESHOLD = 0.125;
-        inline constexpr uint32_t HOMING_SPIN_UP_MS = 200;
+        inline constexpr uint32_t HOMING_SPIN_UP_MS = 100;
         inline constexpr uint32_t ZERO_VELOCITY_TIME_MS = 300;
         inline constexpr uint32_t HOMING_TIMEOUT_MS = 3000;
-        inline constexpr int HOMING_VOLTAGE = -9000;
+        inline constexpr int HOMING_VOLTAGE = -12;
 
-        inline constexpr double MECHANISM_HOMING_ANGLE = (-PI) / 4.0;
-        inline constexpr double MECHANISM_HOMING_POSITION = 5.25;
+        inline constexpr double MECHANISM_HOMING_ANGLE = -0.575959;
+        inline constexpr double MECHANISM_HOMING_POSITION = 2.0;
 
         inline constexpr double MECHANISM_REDUCTION = (72.0 / 24.0);
         inline constexpr double MINIMUM_POSITION_INCHES = 0.0;
@@ -38,7 +38,7 @@ namespace constants {
         inline constexpr double MAXIMUM_VELOCITY_RADIANS_PER_SECOND = 4.0;
         inline constexpr double MAXIMUM_ACCELERATION_RADIANS_PER_SECOND_SQUARED = 12.0;
 
-        inline constexpr double STAGE_LENGTH_INCHES = 13.0;
+        inline constexpr double STAGE_LENGTH_INCHES = 12.0;
         inline constexpr int STAGE_COUNT = 2;
 
         // Only used for testing and profiling lift:
@@ -47,7 +47,6 @@ namespace constants {
         inline constexpr double PROFILING_VOLTAGE_LIMIT = 6.0;
 
         inline constexpr double TOGGLE_HEIGHT = 12.0;
-        inline constexpr double HIGH_HEIGHT = 36.0; // TODO: to be removed
     }
 
     namespace intake {

@@ -153,39 +153,15 @@ void ez_template_extras() {
  * operator control task will be stopped. Re-enabling the robot will restart the
  * task, not resume it from where it left off.
  */
-
-bool lift_voltage_test_controls() {
-  if (!constants::TUNING_MODE) return false;
-
-  if (globals::secondary.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) {
-    if (lift::get_wanted_state() == lift::WantedState::PROFILE) {
-      lift::set_target_height(lift::get_current_height());
-    } else {
-      lift::set_wanted_state(lift::WantedState::PROFILE);
-    }
-  }
-
-  if (lift::get_system_state() != lift::SystemState::PROFILING) {
-    return lift::get_wanted_state() == lift::WantedState::PROFILE;
-  }
-
-  if (globals::secondary.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) lift::adjust_profiling_voltage(constants::lift::VOLTAGE_COARSE_STEP);
-  if (globals::secondary.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R2)) lift::adjust_profiling_voltage(-constants::lift::VOLTAGE_COARSE_STEP);
-  if (globals::secondary.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L1)) lift::adjust_profiling_voltage(constants::lift::VOLTAGE_FINE_STEP);
-  if (globals::secondary.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2)) lift::adjust_profiling_voltage(-constants::lift::VOLTAGE_FINE_STEP);
-
-  return true;
-}
-
 void opcontrol() {
   drivetrain::prepare_teleop();
   drivetrain::set_behavior(drivetrain::Behavior::SPLIT_ARCADE);
 
-  if (!lift::is_homed()) {
-    lift::set_wanted_state(lift::WantedState::HOME);
-  }
+  double mv = 0.0;
 
-  uint32_t last_display_update = 0;
+  if (!lift::is_homed()) {
+   lift::set_wanted_state(lift::WantedState::HOME);
+  }
 
   Logger::start("practice");
 
@@ -206,37 +182,34 @@ void opcontrol() {
       lift::set_target_height(lift::kinematics::minimum_height());
     }
 
-    const bool voltage_profiling = lift_voltage_test_controls();
 
-    if (globals::secondary.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT)) {
-      superstructure::next_goal();
-    }
 
-    if (globals::secondary.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT)) {
-      superstructure::previous_goal();
-    }
+    // if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) mv += 100;
+    // if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R2)) mv -= 100;
+    // if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L1)) mv += 20;
+    // if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2)) mv -= 20;
 
-    if (globals::secondary.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_UP)) {
-      superstructure::increase_stack();
-    }
+    // globals::lift_motors.move_voltage(mv);
+    // printf("Current motor voltage: %.2f, %.2f\n", mv, globals::lift_motors.get_voltage());
 
-    if (globals::secondary.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_DOWN)) {
-      superstructure::decrease_stack();
-    }
 
-    if (pros::millis() - last_display_update >= 100) {
-      last_display_update = pros::millis();
-      char display[32];
 
-      if (voltage_profiling) {
-        std::snprintf(display, sizeof(display), "V%.2f %.1fdeg", lift::get_profiling_voltage(), lift::get_angle() * 180.0 / constants::PI);
-      } else {
-        std::snprintf(display, sizeof(display), "%s %d %.1fin", superstructure::get_goal_name(), superstructure::get_stack_count(), superstructure::get_scoring_height());
-      }
 
-      globals::secondary.print(0, 0, "%-18s", display);
-    }
+    // if (globals::secondary.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT)) {
+    //   superstructure::next_goal();
+    // }
 
+    // if (globals::secondary.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT)) {
+    //   superstructure::previous_goal();
+    // }
+
+    // if (globals::secondary.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_UP)) {
+    //   superstructure::increase_stack();
+    // }
+
+    // if (globals::secondary.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_DOWN)) {
+    //   superstructure::decrease_stack();
+    // }
 
     ez_template_extras();
 

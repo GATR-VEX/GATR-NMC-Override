@@ -36,10 +36,9 @@ namespace lift {
         bool measurement_valid = false;
         bool needs_resync = false;
 
-        double output_volts = 0.0;
-        double feedforward_volts = 0.0;
-        double feedback_volts = 0.0;
-        double test_voltage = 0.0;
+        double output_voltage = 0.0;
+        double feedforward_voltage = 0.0;
+        double feedback_voltage = 0.0;
 
         bool homed = false;
         uint32_t homing_start_ms = 0;
@@ -132,7 +131,15 @@ namespace lift {
             measured_angular_velocity = 0.0;
             homed = true;
             stall_start_ms.reset();
-            wanted_state = state_after_homing;
+
+            if (state_after_homing == WantedState::IDLE) {
+                goal = {constants::lift::MECHANISM_HOMING_ANGLE, 0.0};
+                goal_height_inches = constants::lift::MECHANISM_HOMING_POSITION;
+                wanted_state = WantedState::MOVE_TO_POSITION;
+            } else {
+                wanted_state = state_after_homing;
+            }
+
             state_after_homing = WantedState::IDLE;
 
             return handle_state_transition();
@@ -147,13 +154,12 @@ namespace lift {
                     return update_homing();
 
                 case WantedState::MOVE_TO_POSITION:
-                case WantedState::PROFILE:
                     if (!homed) {
-                        begin_homing(wanted_state);
+                        begin_homing(WantedState::MOVE_TO_POSITION);
                         return SystemState::HOMING;
                     }
 
-                    return wanted_state == WantedState::MOVE_TO_POSITION ? SystemState::MOVING_TO_POSITION  : SystemState::PROFILING;
+                    return SystemState::MOVING_TO_POSITION;
             }
 
             return SystemState::IDLING;
@@ -165,23 +171,20 @@ namespace lift {
                     resync_reference();
                     last_control_ms = pros::millis();
                     break;
-
-                case SystemState::PROFILING:
-                    test_voltage = std::clamp(hold_volts(measured_angle), -k::PROFILING_VOLTAGE_LIMIT, k::PROFILING_VOLTAGE_LIMIT);
-                    break;
-
                 case SystemState::IDLING:
+                    globals::lift_motors.move_voltage(0);
+                    break;
                 case SystemState::HOMING:
                     break;
             }
         }
 
-        void command_volts(double volts) {
-            output_volts = std::clamp(volts, -12.0, 12.0);
-            globals::lift_motors.move_voltage(static_cast<int32_t>(std::lround(output_volts * 1000.0)));
+        void run_voltage(double volts) {
+            output_voltage = std::clamp(volts, -12.0, 12.0);
+            globals::lift_motors.move_voltage(static_cast<int32_t>(std::lround(output_voltage * 1000.0)));
         }
 
-        void run_position_control() {
+        void run_position() {
             const uint32_t now = pros::millis();
             double dt = (now - last_control_ms) / 1000.0;
 
@@ -189,10 +192,10 @@ namespace lift {
             last_control_ms = now;
 
             if (!measurement_valid) {
-                feedforward_volts = 0.0;
-                feedback_volts = 0.0;
+                feedforward_voltage = 0.0;
+                feedback_voltage = 0.0;
                 needs_resync = true;
-                command_volts(0.0);
+                run_voltage(0.0);
                 return;
             }
 
@@ -206,43 +209,37 @@ namespace lift {
             reference = profiler.calculate(dt, previous, goal);
             const double reference_acceleration = (reference.velocity - previous.velocity) / dt;
 
-            feedforward_volts = feedforward.calculate(reference.position, reference.velocity, reference_acceleration);
-            feedback_volts = controller.calculate(measured_angle, reference.position, dt);
+            feedforward_voltage = feedforward.calculate(reference.position, reference.velocity, reference_acceleration);
+            feedback_voltage = controller.calculate(measured_angle, reference.position, dt);
 
-            const double volts = feedforward_volts + feedback_volts;
+            const double voltage = feedforward_voltage + feedback_voltage;
 
-            if (!std::isfinite(volts)) {
+            if (!std::isfinite(voltage)) {
                 needs_resync = true;
-                command_volts(0.0);
+                run_voltage(0.0);
                 return;
             }
 
-            command_volts(volts);
+            run_voltage(voltage);
         }
 
         void apply_states() {
             switch (system_state) {
                 case SystemState::IDLING:
-                    output_volts = 0.0;
-                    feedforward_volts = 0.0;
-                    feedback_volts = 0.0;
-                    globals::lift_motors.brake();
+                    output_voltage = 0.0;
+                    feedforward_voltage = 0.0;
+                    feedback_voltage = 0.0;
+                    globals::lift_motors.move_voltage(0);
                     break;
 
                 case SystemState::HOMING:
-                    feedforward_volts = 0.0;
-                    feedback_volts = 0.0;
-                    command_volts(k::HOMING_VOLTAGE / 1000.0);
-                    break;
-
-                case SystemState::PROFILING:
-                    feedforward_volts = 0.0;
-                    feedback_volts = 0.0;
-                    command_volts(test_voltage);
+                    feedforward_voltage = 0.0;
+                    feedback_voltage = 0.0;
+                    run_voltage(k::HOMING_VOLTAGE);
                     break;
 
                 case SystemState::MOVING_TO_POSITION:
-                    run_position_control();
+                    run_position();
                     break;
             }
         }
@@ -252,7 +249,6 @@ namespace lift {
                 case WantedState::IDLE: return "IDLE";
                 case WantedState::HOME: return "HOME";
                 case WantedState::MOVE_TO_POSITION: return "MOVE";
-                case WantedState::PROFILE: return "PROFILE";
             }
 
             return "?";
@@ -263,7 +259,6 @@ namespace lift {
                 case SystemState::IDLING: return "IDLING";
                 case SystemState::HOMING: return "HOMING";
                 case SystemState::MOVING_TO_POSITION: return "MOVING";
-                case SystemState::PROFILING: return "PROFILING";
             }
 
             return "?";
@@ -294,10 +289,9 @@ namespace lift {
             Logger::recordOutput("Lift/ReferenceAngularVelocityRadPerSecond", reference.velocity);
             Logger::recordOutput("Lift/LinearVelocityInchesPerSecond", get_linear_velocity());
 
-            Logger::recordOutput("Lift/OutputVoltage", output_volts);
-            Logger::recordOutput("Lift/FeedforwardVoltage", feedforward_volts);
-            Logger::recordOutput("Lift/FeedbackVoltage", feedback_volts);
-            Logger::recordOutput("Lift/ProfilingVoltage", test_voltage);
+            Logger::recordOutput("Lift/OutputVoltage", output_voltage);
+            Logger::recordOutput("Lift/FeedforwardVoltage", feedforward_voltage);
+            Logger::recordOutput("Lift/FeedbackVoltage", feedback_voltage);
 
             Logger::recordOutput("Lift/MaxTemperatureCelsius", max_temperature);
             Logger::recordOutput("Lift/TotalCurrentMilliamps", total_current);
@@ -419,21 +413,12 @@ namespace lift {
         return profile_finished && std::abs(goal_height_inches - get_current_height()) <= k::POSITION_TOLERENCE_INCHES && std::abs(get_linear_velocity()) <= k::VELOCITY_TOLERENCE_INCHES_PER_SECOND;
     }
 
-    void adjust_profiling_voltage(double delta_volts) {
-        if (system_state != SystemState::PROFILING || !std::isfinite(delta_volts)) return;
-        test_voltage = std::clamp(test_voltage + delta_volts, -k::PROFILING_VOLTAGE_LIMIT, k::PROFILING_VOLTAGE_LIMIT);
-    }
-
-    double get_profiling_voltage() {
-        return test_voltage;
-    }
-
     void screen_subtask() {
         ez::screen_print(std::string("Lift: ") + wanted_state_name(wanted_state) + " -> " + system_state_name(system_state), 1);
         ez::screen_print("Height: " + util::to_string_with_precision(get_current_height()) + " / " + util::to_string_with_precision(goal_height_inches) + " in", 2);
         ez::screen_print("Angle: " + util::to_string_with_precision(radians_to_degrees(measured_angle), 1) + " deg  cos: " + util::to_string_with_precision(std::cos(measured_angle), 3), 3);
         ez::screen_print("Velocity: " + util::to_string_with_precision(measured_angular_velocity) + " rad/s  ref " + util::to_string_with_precision(reference.velocity), 4);
-        ez::screen_print("Output: " + util::to_string_with_precision(output_volts) + util::to_string_with_precision(feedforward_volts) + util::to_string_with_precision(feedback_volts), 5);
-        ez::screen_print("Profiling Voltage: " + util::to_string_with_precision(test_voltage) + " / " + util::to_string_with_precision(hold_volts(measured_angle)), 6);
+        ez::screen_print("Output: " + util::to_string_with_precision(output_voltage) + util::to_string_with_precision(feedforward_voltage) + util::to_string_with_precision(feedback_voltage), 5);
+        // ez::screen_print("Profiling Voltage: " + util::to_string_with_precision(test_voltage) + " / " + util::to_string_with_precision(hold_volts(measured_angle)), 6);
     }
 }

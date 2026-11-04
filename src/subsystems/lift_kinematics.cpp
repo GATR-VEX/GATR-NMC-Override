@@ -5,6 +5,10 @@
 #include <cmath>
 
 namespace lift::kinematics {
+    namespace {
+        constexpr double EFFECTIVE_LENGTH_INCHES = constants::lift::STAGE_COUNT * constants::lift::STAGE_LENGTH_INCHES;
+    }
+
     double motor_rotations_to_angle(double motor_rotations) {
         const double bar_rotations = motor_rotations / constants::lift::MECHANISM_REDUCTION;
         return constants::lift::MECHANISM_HOMING_ANGLE + bar_rotations * 2.0 * constants::PI;
@@ -20,7 +24,7 @@ namespace lift::kinematics {
     }
 
     double height_to_angle(double height_inches) {
-        const double sine = (height_inches - constants::lift::MECHANISM_HOMING_POSITION) / constants::lift::STAGE_COUNT * constants::lift::STAGE_LENGTH_INCHES + std::sin(constants::lift::MECHANISM_HOMING_ANGLE);
+        const double sine = (height_inches - constants::lift::MECHANISM_HOMING_POSITION) / EFFECTIVE_LENGTH_INCHES + std::sin(constants::lift::MECHANISM_HOMING_ANGLE);
         const double clamped_sine = std::clamp(sine, std::sin(constants::lift::MECHANISM_HOMING_ANGLE), std::sin(constants::lift::MAXIMUM_ANGLE_RADIANS));
 
         return std::asin(clamped_sine);

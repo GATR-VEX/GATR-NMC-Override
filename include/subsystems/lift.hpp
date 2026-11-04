@@ -10,15 +10,13 @@ namespace lift {
     enum class WantedState {
         IDLE,
         HOME,
-        MOVE_TO_POSITION,
-        PROFILE, // Only used to profile the lift during test sessions
+        MOVE_TO_POSITION
     };
 
     enum class SystemState {
         IDLING,
         HOMING,
-        MOVING_TO_POSITION,
-        PROFILING, // Only used to profile the lift during test sessions
+        MOVING_TO_POSITION
     };
 
     void initialize();
@@ -39,9 +37,6 @@ namespace lift {
 
     bool is_homed();
     bool at_setpoint();
-
-    void adjust_profiling_voltage(double delta_volts);
-    double get_profiling_voltage();
 
     void screen_subtask();
 }
