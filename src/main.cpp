@@ -4,7 +4,8 @@
 // For installation, upgrading, documentations, and tutorials, check out our website!
 // https://ez-robotics.github.io/EZ-Template/
 /////
-
+pros::Controller master(pros::E_CONTROLLER_MASTER);
+pros::MotorGroup lift({-11, 12}); // Negative port reverses that motor
 // Chassis constructor
 ez::Drive chassis(
     // These are your drive motors, the first motor is used for sensing!
@@ -30,6 +31,8 @@ ez::Drive chassis(
  * All other competition modes are blocked by initialize; it is recommended
  * to keep execution time for this mode under a few seconds.
  */
+
+
 void initialize() {
   // Print our branding over your terminal :D
   ez::ez_template_print();
@@ -37,7 +40,7 @@ void initialize() {
   pros::delay(500);  // Stop the user from doing anything while legacy ports configure
 
   lift.tare_position();
-
+  liftPID.exit_condition_set(-350, -700, -1050);
   ////claw.tare_position();
 
   // Look at your horizontal tracking wheel and decide if it's in front of the midline of your robot or behind it
@@ -124,7 +127,16 @@ void autonomous() {
   chassis.drive_sensor_reset();               // Reset drive sensors to 0
   chassis.odom_xyt_set(0_in, 0_in, 0_deg);    // Set the current position, you can start at a specific position with this
   chassis.drive_brake_set(MOTOR_BRAKE_HOLD);  // Set motors to hold.  This helps autonomous consistency
+  
+  liftPID.target_set(500);
+  // You can do stuff here and it'll happen while the lift moves
+  lift_wait();  // Wait for the lift to reach its target
 
+  pros::delay(1000);
+
+  liftPID.target_set(0);
+  // You can do stuff here and it'll happen while the lift moves
+  lift_wait();  // Wait for the lift to reach its target
   /*
   Odometry and Pure Pursuit are not magic
 
@@ -248,36 +260,33 @@ void ez_template_extras() {
 void lift_task() {
   pros::delay(2000);  // Set EZ-Template calibrate before this function starts running
   while (true) {
-    set_lift(liftPID.compute(lift.get_position()));
-
+    int pid_output = liftPID.compute(lift.get_position());
+      if(abs(pid_output) < 20)
+        pid_output = 0;
+      set_lift(pid_output);
     pros::delay(ez::util::DELAY_TIME);
   }
 }
-//pros::Task Lift_Task(lift_task);  // Create the task, this will cause the function to start running
+pros::Task Lift_Task(lift_task);  // Create the task, this will cause the function to start running
 
-pros::Controller master(pros::E_CONTROLLER_MASTER);
-pros::MotorGroup lift({-11, 12}); // Negative port reverses that motor
-
-
+int liftp = 350;
+int liftn = 0;
 void opcontrol() {
     //pros::MotorGroup drive({7, -18, 19, -20}); //ports 17 and 19 are normal, ports 18 and 20 are reversed
     while (true) {
         ez_template_extras();
 
         chassis.opcontrol_tank();  // Tank control
-        
+      
       if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
-        liftPID.target_set(-700);
+          liftPID.target_set(-700);
       }
       else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
         liftPID.target_set(0);
       }
 
 
-      int pid_output = liftPID.compute(lift.get_position());
-      if(abs(pid_output) < 20)
-        pid_output = 0;
-      set_lift(pid_output);
+      
 
 
 
