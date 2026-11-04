@@ -258,6 +258,7 @@ void ez_template_extras() {
 pros::Controller master(pros::E_CONTROLLER_MASTER);
 pros::MotorGroup lift({-11, 12}); // Negative port reverses that motor
 
+
 void opcontrol() {
     //pros::MotorGroup drive({7, -18, 19, -20}); //ports 17 and 19 are normal, ports 18 and 20 are reversed
     while (true) {
@@ -265,25 +266,33 @@ void opcontrol() {
 
         chassis.opcontrol_tank();  // Tank control
         
-      //if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
-        //liftPID.target_set(700);
-      //}
-      //else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
-        //liftPID.target_set(0);
-      //}
-      //set_lift(liftPID.compute(lift.get_position()));
+      if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
+        liftPID.target_set(-700);
+      }
+      else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
+        liftPID.target_set(0);
+      }
+
+
+      int pid_output = liftPID.compute(lift.get_position());
+      if(abs(pid_output) < 20)
+        pid_output = 0;
+      set_lift(pid_output);
 
 
 
-        if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
-            lift.move(75); //lift up at max power
-        }
-        else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
-            lift.move(-75); //lift down at max power
-        }
-        else {
-            lift.move(0); //stop lift
-        }
+      pros::lcd::set_text(4, "Lift Position: " + std::to_string(lift.get_position()));
+      pros::lcd::set_text(5, "Lift Target: " + std::to_string(liftPID.compute(lift.get_position())));
+//manual moving (not wanted now)
+        //if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
+            //lift.move(75); //lift up at max power
+        //}
+        //else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
+            //lift.move(-75); //lift down at max power
+        //}
+        //else {
+            //lift.move(0); //stop lift
+        //}
         pros::delay(20);
     }
 }
