@@ -245,14 +245,14 @@ void ez_template_extras() {
  * task, not resume it from where it left off.
  */
 
-//void lift_task() {
-  //pros::delay(2000);  // Set EZ-Template calibrate before this function starts running
-  //while (true) {
-    //set_lift(liftPID.compute(lift.get_position()));
+void lift_task() {
+  pros::delay(2000);  // Set EZ-Template calibrate before this function starts running
+  while (true) {
+    set_lift(liftPID.compute(lift.get_position()));
 
-    //pros::delay(ez::util::DELAY_TIME);
-  //}
-//}
+    pros::delay(ez::util::DELAY_TIME);
+  }
+}
 //pros::Task Lift_Task(lift_task);  // Create the task, this will cause the function to start running
 
 pros::Controller master(pros::E_CONTROLLER_MASTER);
