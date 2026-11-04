@@ -1,8 +1,8 @@
 #include "main.h"
 
-
+//Hardware definitions
 //pros::MotorGroup intake({1,2});
-pros::MotorGroup lift({17, -13}); //Lift {L,R}
+pros::MotorGroup lift({17, -13}, pros::v5::MotorGears::blue); //Lift {L,R}
 //pros::MotorGroup driveL({19,20}); //Left {F,B}
 //pros::MotorGroup driveR({12,11}); //Right {F,B}
 pros::Motor tilt(20);
@@ -56,11 +56,12 @@ int lift_speed_limit(double limit_distance, double slow_zone, double min_speed) 
 
 //Cascade lift controls
 void liftControl(int target_voltage) {
-  const double LIFT_MIN   = 20;      // bottom limit
-  const double LIFT_MAX   = 1600;   // top limit
-  const double SLOW_ZONE  = 250;    // distance from each end where slowing begins
-  const int    MIN_SPEED  = 20;     // Speed in slow zone
-  const int    RAMP_STEP  = 10;     // change per loop; lower = smoother
+  //IMPORTANT - might have to change these constants now that cartridge is defined as blue
+  constexpr double LIFT_MIN   = 20;      // bottom limit
+  constexpr double LIFT_MAX   = 1600;   // top limit
+  constexpr double SLOW_ZONE  = 250;    // distance from each end where slowing begins
+  constexpr int    MIN_SPEED  = 20;     // Speed in slow zone
+  constexpr int    RAMP_STEP  = 10;     // change per loop; lower = smoother
 
   static int lift_cmd = 0;  // current command, persists between loops
 
@@ -88,25 +89,39 @@ ez::PID liftPIDController(
   0.0, //kI
   0.0, //kD
   0.0, //start_i (error at which kI windup starts)
-  "Lift" //name for debugging
+  "LiftPID" //name for debugging
 );
 
-void liftPID(void* param) {//WIP task to handle lift controls (ideally with PID)
-  while (true) {
-    
-    // Example: Control lift with buttons
-    if(master.get_digital(DIGITAL_R1)) {
-      liftControl(127); // Move up
-    } else if(master.get_digital(DIGITAL_R2)) {
-      liftControl(-40); // Move down
-    } else {
-      liftControl(0); // Stop
-    }
-    
-    
-    pros::delay(20); // Small delay to prevent CPU hogging
+pros::Motor liftStallCheck(17); //Duplicate port handler since passing a motor group doesn't work for exit_condition()
+void waitForLift() {
+  while (liftPIDController.exit_condition(liftStallCheck, true) == ez::RUNNING) {
+    pros::delay(ez::util::DELAY_TIME);
   }
 }
+
+void liftPIDTask_fn(void* param) {//WIP task to handle lift controls (ideally with PID)
+  pros::delay(2000); //Wait for lift to initialize before running PID
+  
+  while (true) {
+    liftControl(liftPIDController.compute(lift.get_position()));
+    pros::delay(ez::util::DELAY_TIME);
+  }
+}
+
+void manualLift() { //uses controller to give PID target during opcontrol
+  constexpr double LIFT_INCREMENT = 10; //change in target pos in degrees per tick (~10ms)
+  static double manualTarget = 0;
+  
+  if (master.get_digital(DIGITAL_R1)) { //inputs values into the PID controller to move lift
+    manualTarget += LIFT_INCREMENT;
+    liftPIDController.target_set(manualTarget);
+  } 
+  if (master.get_digital(DIGITAL_R2)) {
+    manualTarget -= LIFT_INCREMENT;
+    liftPIDController.target_set(manualTarget);
+  } 
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Wrist control systems

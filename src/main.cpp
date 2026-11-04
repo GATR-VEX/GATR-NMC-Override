@@ -65,7 +65,19 @@ void initialize() {
   
   liftInit(); //sets lift strings taught
   lift.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-  //liftPID.exit_condition_set(80,50,300,150,500,500); //will need to change
+  tilt.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+  liftPIDController.exit_condition_set( //will need to tune
+    80,
+    50,
+    300,
+    150,
+    500,
+    500
+  );
+
+  //Starting tasks for subystems
+  pros::Task liftPIDTask(liftPIDTask_fn);
+  //pros::Task wristPIDTask(wristPIDTask_fn);
   
   master.rumble(chassis.drive_imu_calibrated() ? "." : "---");
 }
@@ -229,23 +241,28 @@ void opcontrol() {
     ez_template_extras();
 
     //chassis.opcontrol_tank();  // Tank control
-     chassis.opcontrol_arcade_standard(ez::SPLIT);   // Standard split arcade
-    
+    chassis.opcontrol_arcade_standard(ez::SPLIT);   // Standard split arcade
     // chassis.opcontrol_arcade_standard(ez::SINGLE);  // Standard single arcade
     // chassis.opcontrol_arcade_flipped(ez::SPLIT);    // Flipped split arcade
     // chassis.opcontrol_arcade_flipped(ez::SINGLE);   // Flipped single arcade
 
 
-    piston.button_toggle(master.get_digital(pros::E_CONTROLLER_DIGITAL_X)); //Claw control
+    piston.button_toggle(master.get_digital(pros::E_CONTROLLER_DIGITAL_X)); //Manual claw control
 
     tiltControl(); //Manual tilt control
-  
-    if (master.get_digital(DIGITAL_R1)) { //uses lift control to slew movement
-    liftControl(127);
-    } 
-    else if (master.get_digital(DIGITAL_R2)) {
-    liftControl(-40);
-    }
+    manualLift(); //"Manual" lift control using PID with controller inputs
+    
+    /*if (master.get_digital(DIGITAL_R1)) { //uses lift control to slew movement
+      liftControl(127);
+    } else if (master.get_digital(DIGITAL_R2)) {
+      liftControl(-40);
+    } else if (abs(lift.get_actual_velocity()) < 5) {
+      lift.brake(); //only holds if lift is already not moving to not interrupt slew
+    } else {
+      liftControl(0);
+    }*/
+
+    
 
     pros::delay(ez::util::DELAY_TIME);  // This is used for timer calculations!  Keep this ez::util::DELAY_TIME
   }
