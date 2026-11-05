@@ -17,7 +17,7 @@
 // 1 full arm rotation (360°) = 3 motor revolutions = 1080 motor degrees.
 // A typical DR4B arm swings ~60-80 degrees:
 const int BASE_HEIGHT = 150;       // Fully lowered / resting height
-const int HEIGHT_A    = 400;     // Position 1
+const int HEIGHT_A    = 380;     // Position 1
 const int HEIGHT_B    = 800;     // Position 2
 
 /// PID controller instance for DR4B lift
@@ -26,7 +26,7 @@ const int HEIGHT_B    = 800;     // Position 2
 /// @param kD Derivative gain
 /// @param start_i Start integral threshold
 /// @param name PID name for debugging
-ez::PID liftPID{0.15, 0.0, 0.3, 0.0, "DR4B Lift"};
+ez::PID liftPID{0.3, 0.0, 0.0, 0.0, "DR4B Lift"};
 
 /**
  * @brief Helper to get the current DR4B lift position in degrees.
