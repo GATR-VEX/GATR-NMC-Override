@@ -16,9 +16,9 @@
 // With a 100 RPM red motor and 1:3 gear ratio:
 // 1 full arm rotation (360°) = 3 motor revolutions = 1080 motor degrees.
 // A typical DR4B arm swings ~60-80 degrees:
-const int BASE_HEIGHT = 0;       // Fully lowered / resting height
-const int HEIGHT_A    = 250;     // Position 1
-const int HEIGHT_B    = 500;     // Position 2
+const int BASE_HEIGHT = 150;       // Fully lowered / resting height
+const int HEIGHT_A    = 400;     // Position 1
+const int HEIGHT_B    = 800;     // Position 2
 
 /// PID controller instance for DR4B lift
 /// @param kP Proportional gain 
@@ -60,7 +60,7 @@ void LiftController() {
         liftPID.target_set(get_lift_position()); // Follow position so PID holds immediately upon release
       } else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
         manual_active = true;
-        dr4b.move(-100);                         // Speed down
+        dr4b.move(-127/4);                         // Speed down
         liftPID.target_set(get_lift_position()); // Follow position so PID holds immediately upon release
       } else {
         // If manual buttons were just released, lock current position into PID
