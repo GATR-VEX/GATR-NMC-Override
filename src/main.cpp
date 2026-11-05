@@ -113,6 +113,10 @@ void initialize() {
   chassis.initialize();
   ez::as::initialize();
   master.rumble(chassis.drive_imu_calibrated() ? "." : "---");
+  
+  liftPID.exit_condition_set(80, 50, 300, 150, 500, 500);
+  dr4b.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+  dr4b.tare_position();
 }
 
 /**
@@ -157,6 +161,10 @@ void autonomous() {
                                 // specific position with this
   chassis.drive_brake_set(MOTOR_BRAKE_HOLD);  // Set motors to hold.  This helps
                                               // autonomous consistency
+
+  // Ensure lift task is running and active
+  LiftTask.resume();
+  LiftTask.notify();
 
   /*
   Odometry and Pure Pursuit are not magic
@@ -290,6 +298,8 @@ void ez_template_extras() {
 void opcontrol() {
   // This is preference to what you like to drive on
   chassis.drive_brake_set(MOTOR_BRAKE_COAST);
+  LiftTask.resume();
+  LiftTask.notify();
 
   while (true) {
     // Gives you some extras to make EZ-Template ezier
@@ -304,21 +314,6 @@ void opcontrol() {
     // . . .
     // Put more user control code here!
     // . . .
-
-    if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
-      left_dr4b.move(127);
-      right_dr4b.move(127);
-    } else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
-      left_dr4b.move(-127 / 3);
-      right_dr4b.move(-127 / 3);
-    } else {
-      left_dr4b.move(0);
-      right_dr4b.move(0);
-    }
-
-    left_dr4b.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-    right_dr4b.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-
     pros::delay(ez::util::DELAY_TIME);  // This is used for timer calculations!
                                         // Keep this ez::util::DELAY_TIME
   }
