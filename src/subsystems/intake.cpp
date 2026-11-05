@@ -112,10 +112,10 @@ namespace intake {
     }
 
     void screen_subtask() {
-		ez::screen_print("Wanted State: " + static_cast<int>(wanted_state), 1);
-		ez::screen_print("System State: " + static_cast<int>(system_state), 2);
+		ez::screen_print(std::string("Wanted State: ") + wanted_state_name(wanted_state), 1);
+		ez::screen_print(std::string("System State: ") + system_state_name(system_state), 2);
 
-        ez::screen_print("Piston State: " + globals::piston.is_extended(), 4);
-        ez::screen_print("Cycle Count: " + util::to_string_with_precision(cycle_count), 5);
+        ez::screen_print(std::string("Piston: ") + (globals::piston.is_extended() ? "EXTENDED" : "RETRACTED"), 4);
+        ez::screen_print(std::string("Cycle Count: ") + util::to_string_with_precision(cycle_count, 0), 5);
     }
 }

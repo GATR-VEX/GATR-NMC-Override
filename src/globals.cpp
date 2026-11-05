@@ -13,6 +13,7 @@ namespace globals {
     pros::Distance distance(21);
 
     // Controller
-    pros::Controller primary(pros::E_CONTROLLER_MASTER);
-    pros::Controller secondary(pros::E_CONTROLLER_PARTNER);
+    utilities::EventLoop bindings;
+    utilities::Controller primary(pros::E_CONTROLLER_MASTER, bindings);
+    utilities::Controller secondary(pros::E_CONTROLLER_PARTNER, bindings);
 }

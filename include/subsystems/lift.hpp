@@ -21,6 +21,7 @@ namespace lift {
 
     void initialize();
     void periodic();
+    void on_enable();
 
     void set_wanted_state(WantedState state);
 

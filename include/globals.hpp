@@ -9,6 +9,8 @@
 #include "EZ-Template/api.hpp"
 #include "api.h"
 
+#include "utilities/bindings.hpp"
+
 namespace globals {
     // Drivetrain
     extern ez::Drive chassis;
@@ -22,6 +24,7 @@ namespace globals {
     extern pros::Distance distance;
 
     // Controllers
-    extern pros::Controller primary;
-    extern pros::Controller secondary;
+    extern utilities::EventLoop bindings;
+    extern utilities::Controller primary;
+    extern utilities::Controller secondary;
 }

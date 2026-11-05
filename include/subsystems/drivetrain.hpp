@@ -12,12 +12,14 @@ namespace drivetrain {
 
     enum class WantedState {
         TELEOP_DRIVE,
+        AUTONOMOUS,
         DRIVE_TO_POINT,
         IDLE
     };
 
     enum class SystemState {
         TELEOP_DRIVE,
+        AUTONOMOUS,
         DTP_ALIGNING,
         DTP_ALIGNED,
         IDLING

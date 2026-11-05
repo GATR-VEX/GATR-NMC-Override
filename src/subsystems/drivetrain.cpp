@@ -25,6 +25,8 @@ namespace drivetrain {
                     return SystemState::IDLING;
                 case WantedState::TELEOP_DRIVE:
                     return SystemState::TELEOP_DRIVE;
+                case WantedState::AUTONOMOUS:
+                    return SystemState::AUTONOMOUS;
                 case WantedState::DRIVE_TO_POINT:
                     return SystemState::DTP_ALIGNING;
             }
@@ -50,6 +52,8 @@ namespace drivetrain {
                             break;
                     }
 
+                    break;
+                case SystemState::AUTONOMOUS:
                     break;
                 case SystemState::DTP_ALIGNING:
                     break;
@@ -161,6 +165,8 @@ namespace drivetrain {
         globals::chassis.drive_sensor_reset();
         globals::chassis.odom_xyt_set(0_in, 0_in, 0_deg);
         globals::chassis.drive_brake_set(pros::motor_brake_mode_e_t::E_MOTOR_BRAKE_HOLD);
+
+        set_wanted_state(WantedState::AUTONOMOUS);
     }
 
     void periodic() {
