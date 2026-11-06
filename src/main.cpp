@@ -251,6 +251,7 @@ void opcontrol() {
 
     tiltControl(); //Manual tilt control
     manualLift(); //"Manual" lift control using PID with controller inputs
+    flipperControl(); //Manual flipper control
     
     /*if (master.get_digital(DIGITAL_R1)) { //uses lift control to slew movement
       liftControl(127);

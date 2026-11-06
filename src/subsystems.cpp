@@ -3,6 +3,7 @@
 //Hardware definitions
 //pros::MotorGroup intake({1,2});
 pros::MotorGroup lift({17, -13}, pros::v5::MotorGears::blue); //Lift {L,R}
+pros::Motor flipper({15}); //Flipper
 //pros::MotorGroup driveL({19,20}); //Left {F,B}
 //pros::MotorGroup driveR({12,11}); //Right {F,B}
 pros::Motor tilt(20);
@@ -39,8 +40,13 @@ ez::Drive chassis(
 
 //Quick lift height initializer to find and set 0; do NOT run in another while with other functions because it has its own while
 void liftInit() {
+  int startTime = pros::millis();
   lift.move(20); //rotates lift until significant power is drawn (string is taught)
   while ((lift.get_power(0) + lift.get_power(1))/2 < 0.5) {
+    if (pros::millis() - startTime > 2000) {
+      lift.move(0);
+      return;
+    }
     pros::delay(10);
   }
   lift.tare_position();
@@ -58,7 +64,7 @@ int lift_speed_limit(double limit_distance, double slow_zone, double min_speed) 
 void liftControl(int target_voltage) {
   //IMPORTANT - might have to change these constants now that cartridge is defined as blue
   constexpr double LIFT_MIN   = 20;      // bottom limit
-  constexpr double LIFT_MAX   = 1600;   // top limit
+  constexpr double LIFT_MAX   = 1650;   // top limit
   constexpr double SLOW_ZONE  = 250;    // distance from each end where slowing begins
   constexpr int    MIN_SPEED  = 20;     // Speed in slow zone
   constexpr int    RAMP_STEP  = 10;     // change per loop; lower = smoother
@@ -79,13 +85,14 @@ void liftControl(int target_voltage) {
     lift_cmd = std::max(lift_cmd - RAMP_STEP, target_voltage);
   }
 
-  lift.move(lift_cmd);
+  lift_cmd = std::clamp(lift_cmd, -60, 127); //limits down voltage
 
+  lift.move(lift_cmd);
 }
 
 //PID controller for lift (WIP)
 ez::PID liftPIDController(
-  0.1, //kP
+  0.6, //kP
   0.0, //kI
   0.0, //kD
   0.0, //start_i (error at which kI windup starts)
@@ -109,15 +116,17 @@ void liftPIDTask_fn(void* param) {//WIP task to handle lift controls (ideally wi
 }
 
 void manualLift() { //uses controller to give PID target during opcontrol
-  constexpr double LIFT_INCREMENT = 10; //change in target pos in degrees per tick (~10ms)
+  constexpr double LIFT_INCREMENT = 20; //change in target pos in degrees per tick (~10ms)
   static double manualTarget = 0;
   
   if (master.get_digital(DIGITAL_R1)) { //inputs values into the PID controller to move lift
     manualTarget += LIFT_INCREMENT;
+    manualTarget = std::clamp(manualTarget, 0.0, 1600.0); //clamps target to lift limits
     liftPIDController.target_set(manualTarget);
   } 
   if (master.get_digital(DIGITAL_R2)) {
     manualTarget -= LIFT_INCREMENT;
+    manualTarget = std::clamp(manualTarget, 0.0, 1600.0); //clamps target to lift limits
     liftPIDController.target_set(manualTarget);
   } 
 }
@@ -126,6 +135,9 @@ void manualLift() { //uses controller to give PID target during opcontrol
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Wrist control systems
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
 
 void tiltControl() {
   int tiltMax = 345;
@@ -140,8 +152,8 @@ void tiltControl() {
   else if(master.get_digital(DIGITAL_RIGHT)) {
       tilt.move_absolute(200,50); //Scoring Position (level)
     }
-  else if (master.get_digital(DIGITAL_UP)) {
-      tilt.move_absolute(340,50); //Up Position 
+  else if (master.get_digital(DIGITAL_Y)) {
+      tilt.move_absolute(240,50); //Up Position 
     }
   else if (master.get_digital(DIGITAL_LEFT)) {
       tilt.move_absolute(125,50); //Cone Position (angled down)
@@ -149,6 +161,17 @@ void tiltControl() {
   else {
       tilt.brake();
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Flipper control systems
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void flipperControl() {
+  if(master.get_digital(DIGITAL_B)) {
+    flipper.move(127); //Spin Flipper
+  } else {
+    flipper.move(0); //Stops Flipper
+  }
 }
 
 
