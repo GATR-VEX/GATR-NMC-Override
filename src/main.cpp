@@ -113,7 +113,7 @@ void initialize() {
   chassis.initialize();
   ez::as::initialize();
   master.rumble(chassis.drive_imu_calibrated() ? "." : "---");
-  
+
   liftPID.exit_condition_set(80, 50, 300, 150, 500, 500);
   dr4b.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
   dr4b.tare_position();
@@ -310,6 +310,24 @@ void opcontrol() {
     // chassis.opcontrol_arcade_standard(ez::SINGLE);  // Standard single arcade
     // chassis.opcontrol_arcade_flipped(ez::SPLIT);    // Flipped split arcade
     // chassis.opcontrol_arcade_flipped(ez::SINGLE);   // Flipped single arcade
+
+    if (master.get_digital(pros::E_CONTROLLER_DIGITAL_LEFT))
+      claw.move(127);
+    else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_UP))
+      claw.move(-127);
+    else
+      claw.move(0);
+
+    claw.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+
+    if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L1))
+      dr4b.move(127);
+    else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L2))
+      dr4b.move(-127 / 3);
+    else
+      dr4b.move(0);
+
+    dr4b.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
 
     // . . .
     // Put more user control code here!
