@@ -236,10 +236,16 @@ void opcontrol() {
   // This is preference to what you like to drive on
   chassis.drive_brake_set(MOTOR_BRAKE_COAST);
 
+  if (!pros::competition::is_connected()) pros::Task debugOutputTask(debugOutputTask_fn);
+
   while (true) {
     // Gives you some extras to make EZ-Template ezier
     ez_template_extras();
-
+    
+    if (!pros::competition::is_connected()) {
+      if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_UP) && master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_DOWN)) DEBUG_ON = !DEBUG_ON;
+    }
+      
     //chassis.opcontrol_tank();  // Tank control
     chassis.opcontrol_arcade_standard(ez::SPLIT);   // Standard split arcade
     // chassis.opcontrol_arcade_standard(ez::SINGLE);  // Standard single arcade

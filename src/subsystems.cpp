@@ -229,12 +229,38 @@ void scoreMacro() {
   
 }
 
-void motorCurrentDebug(pros::Motor& debugMotor) {
-  std::int32_t current = debugMotor.get_current_draw();
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Debug
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void motorCurrentDebug(pros::Motor& debugMotor) { //outputs motor current to terminal to help tune macros
+  std::int32_t current = debugMotor.get_current_draw();
   if (current != PROS_ERR) {
-    std::cout << "Current Draw: " << current << " mA" << std::endl;
+    std::cout << "Current Draw: " << current << " mA" << " Port(" << static_cast<int>(debugMotor.get_port()) << ")" << std::endl;
   } else {
-    std::cout << "Error reading motor current!" << std::endl;
+    std::cout << "Error reading motor current (" << static_cast<int>(debugMotor.get_port()) << ")" << std::endl;
+  }
+}
+void motorCurrentDebug(pros::MotorGroup& debugGroup) {
+  std::vector<std::int32_t> currents = debugGroup.get_current_draw_all();
+  std::vector<std::int8_t> ports = debugGroup.get_port_all();
+
+  for (std::size_t i = 0; i < currents.size(); i++) {
+    if (currents[i] != PROS_ERR) {
+      std::cout << "Current Draw: " << currents[i] << " mA" << " Port(" << static_cast<int>(ports[i]) << ")" << std::endl;
+    } else {
+      std::cout << "Error reading current on port " << static_cast<int>(ports[i]) << std::endl;
+    }
+  }
+}
+
+void debugOutputTask_fn(void* param) { //Task to output debug without slowing other threads; only runs when toggled and not on competition switch
+  while (true) {
+    if (DEBUG_ON) {
+      //Add debug functions here to read values from motors
+    
+    
+    }
+    pros::delay(200); //prints at ~5Hz
   }
 }
