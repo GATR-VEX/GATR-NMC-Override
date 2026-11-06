@@ -21,7 +21,8 @@ extern const int BASE_HEIGHT;
 extern const int HEIGHT_A;
 extern const int HEIGHT_B;
 
-// PID controller and background task
+// PID controller, state, and background task
+extern bool pid_enabled;
 extern ez::PID liftPID;
 extern pros::Task LiftTask;
 

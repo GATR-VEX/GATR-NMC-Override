@@ -1,4 +1,5 @@
 #include "main.h"
+#include "pros/misc.h"
 
 /////
 // For installation, upgrading, documentations, and tutorials, check out our
@@ -78,11 +79,16 @@ void initialize() {
 
   // Autonomous Selector using LLEMU
   ez::as::auton_selector.autons_add({
+    // PID Tuning
       {"Drive\n\nDrive forward and come back", drive_example},
       {"Turn\n\nTurn 3 times.", turn_example},
       {"Drive and Turn\n\nDrive forward, turn, come back", drive_and_turn},
-      {"Drive and Turn\n\nSlow down during drive", wait_until_change_speed},
       {"Swing Turn\n\nSwing in an 'S' curve", swing_example},
+      // 15s autonomous
+      {"left", left_side},
+      {"right", right_side},
+      // Extra examples
+      {"Drive and Turn\n\nSlow down during drive", wait_until_change_speed},
       {"Motion Chaining\n\nDrive forward, turn, and come back, but blend "
        "everything together :D",
        motion_chaining},
@@ -90,6 +96,7 @@ void initialize() {
       {"Interference\n\nAfter driving forward, robot performs differently if "
        "interfered or not",
        interfered_example},
+      // Odom N/A
       {"Simple Odom\n\nThis is the same as the drive example, but it uses odom "
        "instead!",
        odom_drive_example},
@@ -104,6 +111,7 @@ void initialize() {
       {"Boomerang Pure Pursuit\n\nGo to (0, 24, 45) on the way to (24, 24) "
        "then come back to (0, 0, 0)",
        odom_boomerang_injected_pure_pursuit_example},
+      // Measure Offsets
       {"Measure Offsets\n\nThis will turn the robot a bunch of times and "
        "calculate your offsets for your tracking wheels.",
        measure_offsets},
@@ -267,7 +275,7 @@ void ez_template_extras() {
     if (master.get_digital_new_press(DIGITAL_X)) chassis.pid_tuner_toggle();
 
     // Trigger the selected autonomous routine
-    if (master.get_digital(DIGITAL_B) && master.get_digital(DIGITAL_DOWN)) {
+    if (master.get_digital(pros::E_CONTROLLER_DIGITAL_A) && master.get_digital(pros::E_CONTROLLER_DIGITAL_LEFT)) {
       pros::motor_brake_mode_e_t preference = chassis.drive_brake_get();
       autonomous();
       chassis.drive_brake_set(preference);
