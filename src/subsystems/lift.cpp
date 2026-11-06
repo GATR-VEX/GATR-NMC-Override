@@ -72,23 +72,21 @@ namespace lift {
         }
 
         double hold_volts(double angle_radians) {
-            // const auto& angles = k::GRAVITY_REGRESSION_ANGLE_DEGREES;
-            // const auto& volts = k::GRAVITY_REGRESSION_VOLTAGE;
-            // const double degrees = radians_to_degrees(angle_radians);
+            const auto& angles = k::GRAVITY_REGRESSION_ANGLE_DEGREES;
+            const auto& volts = k::GRAVITY_REGRESSION_VOLTAGE;
+            const double degrees = radians_to_degrees(angle_radians);
 
-            // if (degrees <= angles.front()) return volts.front();
-            // if (degrees >= angles.back()) return volts.back();
+            if (degrees <= angles.front()) return volts.front();
+            if (degrees >= angles.back()) return volts.back();
 
-            // for (std::size_t i = 1; i < angles.size(); ++i) {
-            //     if (degrees <= angles[i]) {
-            //         const double t = (degrees - angles[i - 1]) / (angles[i] - angles[i - 1]);
-            //         return volts[i - 1] + t * (volts[i] - volts[i - 1]);
-            //     }
-            // }
+            for (std::size_t i = 1; i < angles.size(); ++i) {
+                if (degrees <= angles[i]) {
+                    const double t = (degrees - angles[i - 1]) / (angles[i] - angles[i - 1]);
+                    return volts[i - 1] + t * (volts[i] - volts[i - 1]);
+                }
+            }
 
-            // return volts.back();
-
-            return k::KG * std::cos(angle_radians);
+            return volts.back();
         }
 
         void update_measurements() {
