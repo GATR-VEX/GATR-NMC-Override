@@ -6,11 +6,11 @@ namespace globals {
     pros::Imu& imu = chassis.imu;
 
     // Lift
-    pros::MotorGroup lift_motors({11, -20}, pros::MotorGears::red, pros::MotorUnits::rotations);
+    pros::MotorGroup lift_motors({11, 12, -18, -20}, pros::MotorGears::red, pros::MotorUnits::rotations);
 
     // Intake
-    pros::adi::Pneumatics piston('A', false);
-    pros::Distance distance(21);
+    pros::adi::Pneumatics piston('A', true);
+    pros::Distance distance(15);
 
     // Controller
     utilities::EventLoop bindings;
