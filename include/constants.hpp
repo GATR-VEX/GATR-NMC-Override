@@ -22,7 +22,7 @@ namespace constants {
         inline constexpr double KA = 0.1;
 
         inline constexpr std::array<double, 8> GRAVITY_REGRESSION_ANGLE_DEGREES = {-30.0, -15.0, 0.0, 15.0, 30.0, 45.0, 60.0, 75.0};
-        inline constexpr std::array<double, 8> GRAVITY_REGRESSION_VOLTAGE = {1.8, 3.7, 4.75, 5.3, 5.9, 6.7, 7.3, 0};
+        inline constexpr std::array<double, 8> GRAVITY_REGRESSION_VOLTAGE = {1.8, 2.8, 3.15, 3.3, 4.2, 4.3, 4.4, 4.5};
 
         inline constexpr double ZERO_VELOCITY_THRESHOLD = 0.125;
         inline constexpr uint32_t HOMING_SPIN_UP_MS = 200;
@@ -55,7 +55,9 @@ namespace constants {
     }
 
     namespace intake {
-
+		inline constexpr int GAME_PIECE_DETECTION_DISTANCE_MM = 80;
+		inline constexpr int GAME_PIECE_CLEAR_DISTANCE_MM = 100;
+		inline constexpr uint32_t PIECE_DETECTION_TIME_MS = 60;
     }
 
     namespace superstructure {
