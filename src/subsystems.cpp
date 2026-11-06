@@ -1,14 +1,17 @@
 #include "main.h"
 
 //Hardware definitions
-//pros::MotorGroup intake({1,2});
+pros::Controller master(pros::E_CONTROLLER_MASTER);
+
 pros::MotorGroup lift({17, -13}, pros::v5::MotorGears::blue); //Lift {L,R}
 pros::Motor flipper({15}); //Flipper
+pros::Motor tilt(20); //Wrist motor
 //pros::MotorGroup driveL({19,20}); //Left {F,B}
 //pros::MotorGroup driveR({12,11}); //Right {F,B}
-pros::Motor tilt(20);
+
 ez::Piston piston('H');
 
+pros::Distance clawDistance(14); //Distance sensor under claw for grabbing
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Drivetrain control systems & config
@@ -61,13 +64,14 @@ int lift_speed_limit(double limit_distance, double slow_zone, double min_speed) 
 }
 
 //Cascade lift controls
+
+constexpr double LIFT_MIN   = 20;      // bottom limit
+constexpr double LIFT_MAX   = 1650;   // top limit
+constexpr double SLOW_ZONE  = 250;    // distance from each end where slowing begins
+constexpr int    MIN_SPEED  = 20;     // Speed in slow zone
+constexpr int    RAMP_STEP  = 10;     // change per loop; lower = smoother
+
 void liftControl(int target_voltage) {
-  //IMPORTANT - might have to change these constants now that cartridge is defined as blue
-  constexpr double LIFT_MIN   = 20;      // bottom limit
-  constexpr double LIFT_MAX   = 1650;   // top limit
-  constexpr double SLOW_ZONE  = 250;    // distance from each end where slowing begins
-  constexpr int    MIN_SPEED  = 20;     // Speed in slow zone
-  constexpr int    RAMP_STEP  = 10;     // change per loop; lower = smoother
 
   static int lift_cmd = 0;  // current command, persists between loops
 
@@ -121,12 +125,12 @@ void manualLift() { //uses controller to give PID target during opcontrol
   
   if (master.get_digital(DIGITAL_R1)) { //inputs values into the PID controller to move lift
     manualTarget += LIFT_INCREMENT;
-    manualTarget = std::clamp(manualTarget, 0.0, 1600.0); //clamps target to lift limits
+    manualTarget = std::clamp(manualTarget, LIFT_MIN, LIFT_MAX); //clamps target to lift limits
     liftPIDController.target_set(manualTarget);
   } 
   if (master.get_digital(DIGITAL_R2)) {
     manualTarget -= LIFT_INCREMENT;
-    manualTarget = std::clamp(manualTarget, 0.0, 1600.0); //clamps target to lift limits
+    manualTarget = std::clamp(manualTarget, LIFT_MIN, LIFT_MAX); //clamps target to lift limits
     liftPIDController.target_set(manualTarget);
   } 
 }
@@ -223,4 +227,14 @@ void scoreMacro() {
     tilt.move_absolute(340, 50);
   }
   
+}
+
+void motorCurrentDebug(pros::Motor& debugMotor) {
+  std::int32_t current = debugMotor.get_current_draw();
+
+  if (current != PROS_ERR) {
+    std::cout << "Current Draw: " << current << " mA" << std::endl;
+  } else {
+    std::cout << "Error reading motor current!" << std::endl;
+  }
 }

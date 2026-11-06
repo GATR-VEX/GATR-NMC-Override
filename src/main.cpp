@@ -63,9 +63,9 @@ void initialize() {
   chassis.initialize();
   ez::as::initialize();
   
-  liftInit(); //sets lift strings taught
-  lift.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-  tilt.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+  liftInit(); //sets lift strings taught; times out after 2 seconds
+  lift.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+  tilt.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
   liftPIDController.exit_condition_set( //will need to tune
     80,
     50,
@@ -245,7 +245,6 @@ void opcontrol() {
     // chassis.opcontrol_arcade_standard(ez::SINGLE);  // Standard single arcade
     // chassis.opcontrol_arcade_flipped(ez::SPLIT);    // Flipped split arcade
     // chassis.opcontrol_arcade_flipped(ez::SINGLE);   // Flipped single arcade
-
 
     piston.button_toggle(master.get_digital(pros::E_CONTROLLER_DIGITAL_X)); //Manual claw control
 
