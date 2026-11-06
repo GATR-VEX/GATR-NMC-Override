@@ -29,15 +29,17 @@ namespace competition {
         using globals::secondary;
 
         primary.l1().on_true([] {
-            lift::set_target_height(superstructure::get_scoring_height());
+            //lift::set_target_height(superstructure::get_scoring_height());
+            lift::set_target_height(35.0);
         });
 
         primary.l2().on_true([] {
             lift::set_wanted_state(lift::WantedState::HOME);
         });
 
+
         primary.r1().on_true([] {
-            intake::set_wanted_state(intake::get_wanted_state() == intake::WantedState::OPEN ? intake::WantedState::CLOSED : intake::WantedState::OPEN);
+            intake::set_wanted_state(intake::get_wanted_state() == intake::WantedState::CLOSED ? intake::WantedState::AUTO_INTAKE : intake::WantedState::CLOSED);
         });
 
         primary.r2().on_true(drivetrain::toggle_slow_mode);
@@ -61,8 +63,8 @@ namespace competition {
         }
 
         globals::secondary.redraw_display();
+        //double mv = 0.0;
 
-        // Only driver INPUT lives here. The subsystems run in robot.cpp's subsystem task.
         while (true) {
             globals::bindings.poll();
 
@@ -70,6 +72,15 @@ namespace competition {
             globals::secondary.update_display();
 
             ez_template_extras();
+
+            // if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L1)) mv += 100;
+            // if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2)) mv -= 100;
+            // if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) mv += 20;
+            // if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R2)) mv -= 20;
+
+            // globals::lift_motors.move_voltage(mv);
+
+            // printf("Motor voltage: %.2f \n", mv);
 
             pros::delay(ez::util::DELAY_TIME);
         }

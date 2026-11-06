@@ -45,6 +45,7 @@ namespace utilities {
 			static constexpr std::size_t SCREEN_LINES = 3;
 			static constexpr std::size_t SCREEN_WIDTH = 19;
 			static constexpr std::uint32_t SCREEN_UPDATE_MS = 50;
+            static constexpr std::uint32_t SCREEN_REFRESH_MS = 250;
 
             Controller(pros::controller_id_e_t id, EventLoop &loop);
 
@@ -83,5 +84,6 @@ namespace utilities {
 			std::array<bool, SCREEN_LINES> line_sent{};
 			std::size_t next_line = 0;
 			std::uint32_t last_display_ms = 0;
+			std::uint32_t last_refresh_ms = 0;
     };
 }

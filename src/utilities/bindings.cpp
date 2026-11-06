@@ -210,19 +210,35 @@ namespace utilities {
 		const std::uint32_t now = pros::millis();
 		if (now - last_display_ms < SCREEN_UPDATE_MS) return;
 
+		std::size_t line_to_send = SCREEN_LINES;
+
 		for (std::size_t i = 0; i < SCREEN_LINES; ++i) {
 			const std::size_t line = (next_line + i) % SCREEN_LINES;
 
-			if (line_sent[line] && sent_lines[line] == wanted_lines[line]) continue;
+			if (!line_sent[line] || sent_lines[line] != wanted_lines[line]) {
+				line_to_send = line;
+				break;
+			}
+		}
 
-			controller.set_text(static_cast<std::uint8_t>(line), 0, wanted_lines[line]);
+		const bool refreshing = (line_to_send == SCREEN_LINES);
 
-			sent_lines[line] = wanted_lines[line];
-			line_sent[line] = true;
-			next_line = (line + 1) % SCREEN_LINES;
-			last_display_ms = now;
+		if (refreshing) {
+			if (now - last_refresh_ms < SCREEN_REFRESH_MS) return;
+			line_to_send = next_line;
+		}
+
+		last_display_ms = now;
+
+		if (controller.set_text(static_cast<std::uint8_t>(line_to_send), 0, wanted_lines[line_to_send]) != 1) {
 			return;
 		}
+
+		sent_lines[line_to_send] = wanted_lines[line_to_send];
+		line_sent[line_to_send] = true;
+		next_line = (line_to_send + 1) % SCREEN_LINES;
+
+		if (refreshing) last_refresh_ms = now;
 	}
 
 	void Controller::redraw_display() {
