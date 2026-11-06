@@ -6,13 +6,15 @@
 namespace intake {
     enum class WantedState {
         CLOSED,
-        OPEN
+        OPEN,
+	AUTO_INTAKE
     };
 
     enum class SystemState {
         CLOSED_LOADED,
         CLOSED_UNLOADED,
-        OPENED
+        OPENED,
+	WAITING_FOR_PIECE
     };
 
     void initialize();
@@ -23,5 +25,6 @@ namespace intake {
     WantedState get_wanted_state();
     SystemState get_system_state();
 
+    bool has_game_piece();
     void screen_subtask();
 }
