@@ -306,15 +306,15 @@ void opcontrol() {
       }
       //Claw Movement
       if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) {
-        clawPower = 127; // Snap shut at max power
+        clawPower = 127; // bragging the pin / cup
       }
       else if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R2)) {
-        clawPower = -127;   // Stop motor (let the ratchet hold, or drop piece)
+        clawPower = -127;   // Expelliarmus
       }
 
       // The Ramp-Down part of the claw
       if (clawPower > 40) {
-          clawPower -= 0.1;
+          clawPower -= 0.01;
       }
       else if (clawPower < -40) {
           clawPower += 1;
