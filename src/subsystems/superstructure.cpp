@@ -3,178 +3,124 @@
 #include "utilities/logger.hpp"
 #include "constants.hpp"
 
-#include <algorithm>
+#include <array>
+#include <cstddef> 
+#include <cstdio>
 
 using utilities::Logger;
 
 namespace superstructure {
-    namespace {
-        namespace k = constants::superstructure;
+	namespace {
+		namespace k = constants::superstructure;
 
-        GoalType selected_goal = GoalType::ALLIANCE;
-        GamePieceType selected_piece = GamePieceType::PIN;
-        int stack_count = 0;
+		Node selected_node = Node::ALLIANCE;
 
-        double get_base_height() {
-            switch (selected_goal) {
-                case GoalType::ALLIANCE: 
-                    return k::ALLIANCE_BASE_HEIGHT_IN;
-                case GoalType::SHORT:
-                    return k::SHORT_BASE_HEIGHT_IN;
-                case GoalType::TALL:
-                    return k::TALL_BASE_HEIGHT_IN;
-            }
+		std::size_t pieces_on_node = 0;
 
-            return 0.0;
-        }
+		const std::array<double, k::STACK_POSITIONS>& heights_for(Node node) {
+			switch (node) {
+				case Node::ALLIANCE:
+					return k::ALLIANCE_NODE_HEIGHTS;
+				case Node::NEUTRAL:
+					return k::NEUTRAL_NODE_HEIGHTS;
+				case Node::CENTER:
+					return k::CENTER_NODE_HEIGHTS;
+			}
 
-        double get_piece_offset() {
-            switch (selected_piece) {
-                case GamePieceType::PIN:
-                    return k::PIN_OFFSET_IN;
-                case GamePieceType::CUP:
-                    return k::CUP_OFFSET_IN;
-                case GamePieceType::BOTH:
-                    return k::BOTH_OFFSET_IN;
-            }
+			return k::ALLIANCE_NODE_HEIGHTS;
+		}
+	}
 
-            return 0.0;
-        }
-    }
+	void initialize() {
+		selected_node = Node::ALLIANCE;
+		pieces_on_node = 0;
 
-    void initialize() {
-        selected_goal = GoalType::ALLIANCE;
-        selected_piece = GamePieceType::PIN;
-        stack_count = 0;
+		const char* outputs[] = {
+			"Superstructure/Node",
+			"Superstructure/StackHeight",
+			"Superstructure/ScoringHeightInches"
+		};
 
-        const char* outputs[] = {
-            "Superstructure/GoalType",
-            "Superstructure/PieceType",
-            "Superstructure/StackCount",
-            "Superstructure/ScoringHeightInches",
-        };
+		for (const char* output : outputs) {
+			Logger::registerOutput(output);
+		}
+	}
 
-        for (const char* name : outputs) {
-            Logger::registerOutput(name);
-        }
-    }
+	void periodic() {
+		Logger::recordOutput("Superstructure/Node", static_cast<int>(selected_node));
+		Logger::recordOutput("Superstructure/StackHeight", get_stack_height());
+		Logger::recordOutput("Superstructure/ScoringHeightInches", get_scoring_height());
+	}
 
-    void periodic() {
-        Logger::recordOutput("Superstructure/GoalType", static_cast<int>(selected_goal));
-        Logger::recordOutput("Superstructure/PieceType", static_cast<int>(selected_piece));
-        Logger::recordOutput("Superstructure/StackCount", stack_count);
-        Logger::recordOutput("Superstructure/ScoringHeightInches", get_scoring_height());
-    }
+	void next_node() {
+		switch (selected_node) {
+			case Node::ALLIANCE:
+				selected_node = Node::NEUTRAL;
+			case Node::NEUTRAL:
+				selected_node = Node::CENTER;
+			case Node::CENTER:
+				selected_node = Node::ALLIANCE;
+		}
+	}
 
-    void next_goal() {
-        switch (selected_goal) {
-            case GoalType::ALLIANCE:
-                selected_goal = GoalType::SHORT; 
-                break;
-            case GoalType::SHORT: 
-                selected_goal = GoalType::TALL; 
-                break;
-            case GoalType::TALL: 
-                selected_goal = GoalType::ALLIANCE;  
-                break;
-        }
-    }
+	void previous_node() {
+		switch (selected_node) {
+			case Node::ALLIANCE:
+				selected_node = Node::CENTER;
+			case Node::NEUTRAL:
+				selected_node = Node::ALLIANCE;
+			case Node::CENTER:
+				selected_node = Node::NEUTRAL;
+		}
+	}
 
-    void previous_goal() {
-        switch (selected_goal) {
-            case GoalType::ALLIANCE: 
-                selected_goal = GoalType::TALL; 
-                break;
-            case GoalType::SHORT:    
-                selected_goal = GoalType::ALLIANCE; 
-                break;
-            case GoalType::TALL:     
-                selected_goal = GoalType::SHORT; 
-                break;
-        }
-    }
+	void increase_stack() {
+		if (pieces_on_node + 1 < k::STACK_POSITIONS) {
+			++pieces_on_node;
+		}
+	}
 
-    void next_game_piece() {
-        switch (selected_piece) {
-            case GamePieceType::PIN:         
-                selected_piece = GamePieceType::CUP; 
-                break;
-            case GamePieceType::CUP:         
-                selected_piece = GamePieceType::BOTH; 
-                break;
-            case GamePieceType::BOTH: 
-                selected_piece = GamePieceType::PIN; 
-                break;
-        }
-    }
+	void decrease_stack() {
+		if (pieces_on_node > 0) {
+			--pieces_on_node;
+		}
+	}
 
-    void previous_game_piece() {
-        switch (selected_piece) {
-            case GamePieceType::PIN:         
-                selected_piece = GamePieceType::BOTH; 
-                break;
-            case GamePieceType::CUP:         
-                selected_piece = GamePieceType::PIN; 
-                break;
-            case GamePieceType::BOTH: 
-                selected_piece = GamePieceType::CUP; 
-                break;
-        }
-    }
+	Node get_node() {
+		return selected_node;
+	}
 
-    void increase_stack() {
-        stack_count = std::min(stack_count + 1, k::MAX_STACK_COUNT);
-    }
+	const char* get_node_name() {
+		switch (selected_node) {
+			case Node::ALLIANCE:
+				return "Alliance";
+			case Node::NEUTRAL:
+				return "Neutral";
+			case Node::CENTER:
+				return "Center";
+		}
 
-    void decrease_stack() {
-        stack_count = std::max(stack_count - 1, 0);
-    }
+		return "N/A";
+	}
 
-    GoalType get_goal_type() {
-        return selected_goal;
-    }
+	double get_stack_height() {
+		return pieces_on_node * 0.5;
+	}
 
-    GamePieceType get_game_piece_type() {
-        return selected_piece;
-    }
+	double get_scoring_height() {
+		return heights_for(selected_node)[pieces_on_node];
+	}
 
-    int get_stack_count() {
-        return stack_count;
-    }
+	bool has_scoring_height() {
+		return get_scoring_height() > 0;
+	}
 
-    const char* get_goal_name() {
-        switch (selected_goal) {
-            case GoalType::ALLIANCE:
-                return "ALLIANCE";
-            case GoalType::SHORT:
-                return "SHORT";
-            case GoalType::TALL:     
-                return "TALL";
-        }
+	void write_display(utilities::Controller& controller, int seconds_left) {
+        char node[16];
+        std::snprintf(node, sizeof(node), "Node: %s", get_node_name());
 
-        return "?";
-    }
-
-    const char* get_game_piece_name() {
-        switch (selected_piece) {
-            case GamePieceType::PIN:
-                return "PIN";
-            case GamePieceType::CUP:
-                return "CUP";
-            case GamePieceType::BOTH: 
-                return "PIN & CUP";
-        }
-
-        return "?";
-    }
-
-    double get_scoring_height() {
-        return get_base_height() + get_piece_offset() + stack_count * k::STACK_INCREMENT_IN;
-    }
-
-    void write_display(utilities::Controller& controller) {
-        controller.set_line(0, "%-8s %s", get_goal_name(), get_game_piece_name());
-        controller.set_line(1, "Stack %d  %5.1f in", stack_count, get_scoring_height());
-        controller.set_line(2, "Lift %5.1f in", lift::get_current_height());
+        controller.set_line(0, "%-15s %3d", node, seconds_left);
+        controller.set_line(1, "Stack height: %.1f", get_stack_height());
+        controller.set_line(2, "Lift height: %5.1f", lift::get_current_height());
     }
 }

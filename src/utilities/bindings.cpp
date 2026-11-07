@@ -210,6 +210,18 @@ namespace utilities {
 		const std::uint32_t now = pros::millis();
 		if (now - last_display_ms < SCREEN_UPDATE_MS) return;
 
+		if (clear_pending) {
+			last_display_ms = now;
+
+			if (controller.clear() == 1) {
+				clear_pending = false;
+				line_sent.fill(false);
+				next_line = 0;
+			}
+
+			return;
+		}
+        
 		std::size_t line_to_send = SCREEN_LINES;
 
 		for (std::size_t i = 0; i < SCREEN_LINES; ++i) {
@@ -242,7 +254,7 @@ namespace utilities {
 	}
 
 	void Controller::redraw_display() {
-		line_sent.fill(false);
+		clear_pending = true;
 	}
 
     pros::Controller &Controller::raw() {

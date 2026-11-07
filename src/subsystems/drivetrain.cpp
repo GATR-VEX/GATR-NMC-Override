@@ -112,6 +112,9 @@ namespace drivetrain {
             accumulate(globals::chassis.left_motors);
             accumulate(globals::chassis.right_motors);
 
+            Logger::recordOutput("Drivetrain/GyroYaw", globals::chassis.imu.get_yaw());
+            Logger::recordOutput("Drivetrain/GyroPitch", globals::imu.get_pitch());
+            Logger::recordOutput("Drivetrain/GyroRoll", globals::imu.get_roll());
             Logger::recordOutput("Drivetrain/MaxTemperatureCelsius", max_temperature);
             Logger::recordOutput("Drivetrain/TotalCurrentMilliamps", total_current);
             Logger::recordOutput("Drivetrain/WantedState", static_cast<int>(wanted_state));
@@ -143,6 +146,9 @@ namespace drivetrain {
         current_behavior = Behavior::SPLIT_ARCADE;
 
         const char* outputs[] = {
+            "Drivetrain/GyroYaw", 
+            "Drivetrain/GyroPitch", 
+            "Drivetrain/GyroRoll", 
             "Drivetrain/MaxTemperatureCelsius", 
             "Drivetrain/TotalCurrentMilliamps",
             "Drivetrain/WantedState", 
@@ -252,6 +258,13 @@ namespace drivetrain {
             " | Y: " + util::to_string_with_precision(globals::chassis.odom_y_get(), 3) +
             " | θ: " + util::to_string_with_precision(globals::chassis.odom_theta_get(), 3),
             3
+        );
+
+        ez::screen_print(
+            "Gyro | Pitch: " + util::to_string_with_precision(globals::imu.get_pitch(), 3) +
+            " | Roll: " + util::to_string_with_precision(globals::imu.get_roll(), 3) +
+            " | Yaw: " + util::to_string_with_precision(globals::imu.get_yaw(), 3),
+            4
         );
     }
 }

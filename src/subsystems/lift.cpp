@@ -22,7 +22,7 @@ namespace lift {
         pros::Mutex lift_mutex;
 
         controls::PIDController controller(k::KP, 0.0, k::KD);
-        controls::ArmFeedforward feedforward(k::KS, k::KV, k::KG, k::KA);
+        controls::ArmFeedforward feedforward(k::KS, k::KV, 0.0, k::KA);
         controls::MotionProfiler profiler({k::MAXIMUM_VELOCITY_RADIANS_PER_SECOND, k::MAXIMUM_ACCELERATION_RADIANS_PER_SECOND_SQUARED});
 
         WantedState wanted_state = WantedState::IDLE;
@@ -260,7 +260,7 @@ namespace lift {
             reference = profiler.calculate(dt, previous, goal);
             const double reference_acceleration = (reference.velocity - previous.velocity) / dt;
 
-            feedforward_voltage = feedforward.calculate(reference.position, reference.velocity, reference_acceleration);
+            feedforward_voltage = feedforward.calculate(reference.position, reference.velocity, reference_acceleration) + hold_volts(reference.position);
             feedback_voltage = controller.calculate(measured_angle, reference.position, dt);
 
             const double voltage = feedforward_voltage + feedback_voltage;

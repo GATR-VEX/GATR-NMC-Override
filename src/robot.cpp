@@ -8,6 +8,7 @@
 #include "subsystems/intake.hpp"
 #include "subsystems/superstructure.hpp"
 #include "utilities/logger.hpp"
+#include "utilities/robot_status.hpp"
 #include "robot.hpp"
 
 #include <cstdint>
@@ -33,6 +34,7 @@ namespace robot {
                 was_enabled = enabled;
 
                 if (enabled) {
+					robot_status::periodic();	
                     superstructure::periodic();
                     lift::periodic();
                     intake::periodic();
@@ -74,6 +76,7 @@ namespace robot {
         lift::initialize();
         intake::initialize();
         superstructure::initialize();
+		robot_status::initialize();
 
         competition::register_autons();
         competition::configure_bindings();
