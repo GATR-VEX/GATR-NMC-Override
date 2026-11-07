@@ -431,6 +431,6 @@
       "icon": "clawbot",
       "after": "run"
     },
-    "use_early_access": false,
+    "use_early_access": false
   }
 }
