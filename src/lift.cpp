@@ -17,7 +17,7 @@ const int HEIGHT_A    = 380;     // Position 1
 const int HEIGHT_B    = 560;     // Position 2
 
 /// PID controller instance for DR4B lift
-ez::PID liftPID{0.15, 0.0, 0.0, 0.0, "DR4B Lift"};
+ez::PID liftPID{0.5, 0.0, 0.3, 0.0, "DR4B Lift"};
 
 /**
  * @brief Helper to get the current DR4B lift position in degrees.

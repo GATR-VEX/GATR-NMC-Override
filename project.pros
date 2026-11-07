@@ -428,8 +428,9 @@
       "description": "roboticsisez.com",
       "remote_name": "EZ-Template",
       "slot": 3,
-      "icon": "clawbot"
+      "icon": "clawbot",
+      "after": "run"
     },
-    "use_early_access": false
+    "use_early_access": false,
   }
 }
