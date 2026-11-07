@@ -6,7 +6,7 @@ namespace globals {
     pros::Imu& imu = chassis.imu;
 
     // Lift
-    pros::MotorGroup lift_motors({11, 12, -18, -20}, pros::MotorGears::red, pros::MotorUnits::rotations);
+    pros::MotorGroup lift_motors({11, 14, -18, -20}, pros::MotorGears::red, pros::MotorUnits::rotations);
 
     // Intake
     pros::adi::Pneumatics piston('A', true);
