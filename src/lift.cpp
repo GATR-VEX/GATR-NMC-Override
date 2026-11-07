@@ -75,15 +75,15 @@ void LiftController() {
           manual_active = false;
         }
 
-        // 2. Preset Toggle Buttons: Y and B
-        if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_Y)) {
+        // 2. Preset Toggle Buttons: A and X
+        if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) {
           if (std::abs(liftPID.target_get() - HEIGHT_A) < 20) {
             liftPID.target_set(BASE_HEIGHT);
           } else {
             liftPID.target_set(HEIGHT_A);
           }
         }
-        else if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B)) {
+        else if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X)) {
           if (std::abs(liftPID.target_get() - HEIGHT_B) < 20) {
             liftPID.target_set(BASE_HEIGHT);
           } else {
