@@ -13,6 +13,8 @@ ez::Piston piston('H');
 
 pros::Distance clawDistance(14); //Distance sensor under claw for grabbing
 
+bool manualTiltEnabled = false;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Drivetrain control systems & config
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -66,7 +68,7 @@ int lift_speed_limit(double limit_distance, double slow_zone, double min_speed) 
 //Cascade lift controls
 
 constexpr double LIFT_MIN   = 20;      // bottom limit
-constexpr double LIFT_MAX   = 1650;   // top limit
+constexpr double LIFT_MAX   = 1820;   // top limit
 constexpr double SLOW_ZONE  = 250;    // distance from each end where slowing begins
 constexpr int    MIN_SPEED  = 20;     // Speed in slow zone
 constexpr int    RAMP_STEP  = 10;     // change per loop; lower = smoother
@@ -121,18 +123,17 @@ void liftPIDTask_fn(void* param) {//WIP task to handle lift controls (ideally wi
 
 void manualLift() { //uses controller to give PID target during opcontrol
   constexpr double LIFT_INCREMENT = 20; //change in target pos in degrees per tick (~10ms)
-  static double manualTarget = 0;
+  static double manualTarget = lift.get_position();
   
   if (master.get_digital(DIGITAL_R1)) { //inputs values into the PID controller to move lift
     manualTarget += LIFT_INCREMENT;
     manualTarget = std::clamp(manualTarget, LIFT_MIN, LIFT_MAX); //clamps target to lift limits
-    liftPIDController.target_set(manualTarget);
   } 
   if (master.get_digital(DIGITAL_R2)) {
     manualTarget -= LIFT_INCREMENT;
     manualTarget = std::clamp(manualTarget, LIFT_MIN, LIFT_MAX); //clamps target to lift limits
-    liftPIDController.target_set(manualTarget);
   } 
+  liftPIDController.target_set(manualTarget);
 }
 
 
@@ -140,31 +141,50 @@ void manualLift() { //uses controller to give PID target during opcontrol
 //Wrist control systems
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void tiltControl(int target) {
+  constexpr int MAX_UP = 127; //voltage/speed limits
+  constexpr int MAX_DOWN = 127;
+  
+  static int tiltcmd = 0;
+  tiltcmd = std::clamp(MAX_DOWN, MAX_UP, target);
 
+  tilt.move(tiltcmd);
+}
 
+//PID controller for wrist (WIP)
+ez::PID wristPIDController(
+  0.6, //kP
+  0.0, //kI
+  0.45, //kD
+  0.0, //start_i (error at which kI windup starts)
+  "WristPID" //name for debugging
+);
 
-void tiltControl() {
-  int tiltMax = 345;
-  int tiltMin = 0;
+pros::Motor tiltStallCheck(20); //Duplicate port handler since passing a motor group doesn't work for exit_condition()
+void waitForWrist() {
+  while (wristPIDController.exit_condition(tiltStallCheck, true) == ez::RUNNING) {
+    pros::delay(ez::util::DELAY_TIME);
+  }
+}
 
-  if(master.get_digital(DIGITAL_L1) && tilt.get_position() < tiltMax){
-      tilt.move(40);
-    }
-  else if(master.get_digital(DIGITAL_L2) && tilt.get_position() > tiltMin) {
-      tilt.move(-30);
-    }
-  else if(master.get_digital(DIGITAL_RIGHT)) {
-      tilt.move_absolute(200,50); //Scoring Position (level)
-    }
-  else if (master.get_digital(DIGITAL_Y)) {
-      tilt.move_absolute(240,50); //Up Position 
-    }
-  else if (master.get_digital(DIGITAL_LEFT)) {
-      tilt.move_absolute(125,50); //Cone Position (angled down)
-    }
-  else {
-      tilt.brake();
-    }
+void wristPIDTask_fn(void* param) {
+  pros::delay(2000); //Wait for wrist to initialize before running PID
+  
+  while (true) {
+    tiltControl(wristPIDController.compute(tilt.get_position()));
+    pros::delay(ez::util::DELAY_TIME);
+  }
+}
+
+void manualTilt() {
+  static double manualTiltTarget = 0;
+  if (manualTiltEnabled) {
+    if (master.get_digital(DIGITAL_L1)) {manualTiltTarget = 345; wristPIDController.target_set(manualTiltTarget);} //Pre-grab position (up all the way)
+    else if (master.get_digital(DIGITAL_RIGHT)) {manualTiltTarget = 200; wristPIDController.target_set(manualTiltTarget);} //Scoring Position (level)
+    else if (master.get_digital(DIGITAL_Y)) {manualTiltTarget = 240; wristPIDController.target_set(manualTiltTarget);} //Up Position 
+    else if (master.get_digital(DIGITAL_LEFT)) {manualTiltTarget = 125; wristPIDController.target_set(manualTiltTarget);} //Cone Position (angled down)
+    manualTiltTarget = std::clamp<double>(10, 345, manualTiltTarget);
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -185,11 +205,15 @@ void flipperControl() {
 
 //(**not tested yet) Simple grabbing macro to tilt wrist down onto pin and grab shortly after
 void grabMacro() {
-  tilt.move_absolute(200, 50);
-  if (tilt.get_position() < 205) { //clamps once wrist is at desired angle
-    piston.set(true);
-    tilt.move(0);
+  manualTiltEnabled = false;
+  wristPIDController.target_set(200);
+  while (tilt.get_position() > 205) { //clamps once wrist is at desired angle
+    pros::delay(20);
   } 
+  piston.set(true);
+  pros::delay(200);
+  wristPIDController.target_set(240);
+  manualTiltEnabled = true;
 }
 
 //(**not tested yet) Simple scoring macro to drop cup on stack, lift up, and automatically tilt wrist up
@@ -229,6 +253,15 @@ void scoreMacro() {
   
 }
 
+void macroTask_fn(void* param) {
+  while (true) {
+    
+    if (master.get_digital(DIGITAL_B)) {grabMacro();}
+    
+    pros::delay(ez::util::DELAY_TIME);
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Debug
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -255,11 +288,15 @@ void motorCurrentDebug(pros::MotorGroup& debugGroup) {
 }
 
 void debugOutputTask_fn(void* param) { //Task to output debug without slowing other threads; only runs when toggled and not on competition switch
+
   while (true) {
     if (DEBUG_ON) {
       //Add debug functions here to read values from motors
-    
-    
+      std::cout << "Terminal Running:\n" << std::flush;
+      std::cout << "Lift Height: " << (int)lift.get_position() << " degrees             \n" << std::flush;
+      
+
+      std::cout << "\r\033[2A" << std::flush;
     }
     pros::delay(200); //prints at ~5Hz
   }

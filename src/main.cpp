@@ -62,11 +62,20 @@ void initialize() {
   // Initialize chassis and auton selector
   chassis.initialize();
   ez::as::initialize();
-  
-  liftInit(); //sets lift strings taught; times out after 2 seconds
+
   lift.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
   tilt.set_brake_mode_all(pros::E_MOTOR_BRAKE_HOLD);
+  
   liftPIDController.exit_condition_set( //will need to tune
+    80,
+    50,
+    300,
+    150,
+    500,
+    500
+  );
+  
+  wristPIDController.exit_condition_set( //will need to tune
     80,
     50,
     300,
@@ -77,8 +86,11 @@ void initialize() {
 
   //Starting tasks for subystems
   pros::Task liftPIDTask(liftPIDTask_fn);
-  //pros::Task wristPIDTask(wristPIDTask_fn);
+  pros::Task wristPIDTask(wristPIDTask_fn);
+  pros::Task macroTask(macroTask_fn);
   
+  liftInit(); //sets lift strings taught; times out after 2 seconds
+  wristPIDController.target_set(345);
   master.rumble(chassis.drive_imu_calibrated() ? "." : "---");
 }
 
@@ -235,6 +247,7 @@ void ez_template_extras() {
 void opcontrol() {
   // This is preference to what you like to drive on
   chassis.drive_brake_set(MOTOR_BRAKE_COAST);
+  bool manualTiltEnabled = true; //enables the manual tilt function
 
   if (!pros::competition::is_connected()) pros::Task debugOutputTask(debugOutputTask_fn);
 
@@ -254,21 +267,9 @@ void opcontrol() {
 
     piston.button_toggle(master.get_digital(pros::E_CONTROLLER_DIGITAL_X)); //Manual claw control
 
-    tiltControl(); //Manual tilt control
+    manualTilt(); //Manual tilt control using PID
     manualLift(); //"Manual" lift control using PID with controller inputs
     flipperControl(); //Manual flipper control
-    
-    /*if (master.get_digital(DIGITAL_R1)) { //uses lift control to slew movement
-      liftControl(127);
-    } else if (master.get_digital(DIGITAL_R2)) {
-      liftControl(-40);
-    } else if (abs(lift.get_actual_velocity()) < 5) {
-      lift.brake(); //only holds if lift is already not moving to not interrupt slew
-    } else {
-      liftControl(0);
-    }*/
-
-    
 
     pros::delay(ez::util::DELAY_TIME);  // This is used for timer calculations!  Keep this ez::util::DELAY_TIME
   }
