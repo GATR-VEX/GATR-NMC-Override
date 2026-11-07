@@ -57,7 +57,7 @@ void initialize() {
   // Configure your chassis controls
   chassis.opcontrol_curve_buttons_toggle(true);   // Enables modifying the controller curve with buttons on the joysticks
   chassis.opcontrol_drive_activebrake_set(0.0);   // Sets the active brake kP. We recommend ~2.  0 will disable.
-  chassis.opcontrol_curve_default_set(0.0, 0.0);  // Defaults for curve. If using tank, only the first parameter is used. (Comment this line out if you have an SD card!)
+  chassis.opcontrol_curve_default_set(2.5, 0.0);  // Defaults for curve. If using tank, only the first parameter is used. (Comment this line out if you have an SD card!)
 
   // Set the drive to your own constants from autons.cpp!
   default_constants();
@@ -269,6 +269,7 @@ pros::Task Lift_Task(lift_task);  // Create the task, this will cause the functi
 
 int liftState = 0;
 int clawPower = 0;
+bool isHolding = false;
 void opcontrol() {
   int liftState = 0; // 0: Base, 1: Level 1, 2: Level 2, 3: Level 3
     while (true) {
@@ -296,25 +297,44 @@ void opcontrol() {
           liftPID.target_set(0);      // Base position
       } 
       else if (liftState == 1) {
-          liftPID.target_set(-500);   // Level 1
+          liftPID.target_set(-428);   // Level 1
       } 
       else if (liftState == 2) {
-          liftPID.target_set(-1000);  // Level 2
+          liftPID.target_set(-856);  // Level 2
       } 
       else if (liftState == 3) {
-          liftPID.target_set(-1500);  // Level 3
+          liftPID.target_set(-1284);  // Level 3
+      }
+      if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_DOWN)) {
+            // 2 inches = ~78 ticks. Adding 78 moves it closer to 0 (down).
+            liftPID.target_set(liftPID.target_get() + 78); 
       }
       //Claw Movement
       if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) {
         clawPower = 127; // bragging the pin / cup
+        isHolding = true;
       }
       else if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R2)) {
         clawPower = -127;   // Expelliarmus
+        isHolding = false;
+      }
+      else {
+        if (isHolding) {
+          if (clawPower > 20) {
+            clawPower -= 2;
+          } 
+          else {
+            clawPower = 0;
+          }
+        }
+        else {
+          clawPower = 0;
+        }
       }
 
       // The Ramp-Down part of the claw
       if (clawPower > 40) {
-          clawPower -= 0.01;
+          clawPower -= 1;
       }
       else if (clawPower < -40) {
           clawPower += 1;
@@ -322,7 +342,6 @@ void opcontrol() {
       else if (clawPower >= -40 and clawPower < 0) {
           clawPower = 0;
       }
-
       // Actually moving the motor
       claw.move(clawPower);
 
