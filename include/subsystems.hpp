@@ -15,8 +15,11 @@ inline void set_lift(int input) {
   lift.move(input);
 }
 
-inline ez::PID liftPID{0.55, 0, 0.8, 0, "Lift"};
-
+inline ez::PID liftPID{0.8, 0.01, 0.8, 0, "Lift"};
+// Add this to define when the lift is "done" moving
+inline void lift_exit_condition_set() {
+    liftPID.exit_condition_set(80, 300, 300, 700, 2000); 
+}
 // Your motors, sensors, etc. should go here.  Below are examples
 // inline pros::Motor intake(1);
 // inline pros::adi::DigitalIn limit_switch('A');

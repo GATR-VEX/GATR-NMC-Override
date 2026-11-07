@@ -6,12 +6,13 @@
 /////
 pros::Controller master(pros::E_CONTROLLER_MASTER);
 pros::MotorGroup lift({-11, 12}); // Negative port reverses that motor
+pros::Motor claw(13);
 // Chassis constructor
 ez::Drive chassis(
     // These are your drive motors, the first motor is used for sensing!
     //{-18, 15, -11, -13},  // Left Chassis Ports (negative port will reverse it!)
     //{19, -16, 12, 14},  // Right Chassis Ports (negative port will reverse it!)
-    {17, 18},
+    {16, 17},
     {-19, -20},
     21,      // IMU Port
     4.125,   // Wheel Diameter (Remember, 4" wheels without screw holes are actually 4.125!)
@@ -40,9 +41,10 @@ void initialize() {
   pros::delay(500);  // Stop the user from doing anything while legacy ports configure
 
   lift.tare_position();
+  lift.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
   liftPID.exit_condition_set(-350, -700, -1050);
   ////claw.tare_position();
-
+  lift_exit_condition_set();
   // Look at your horizontal tracking wheel and decide if it's in front of the midline of your robot or behind it
   //  - change `back` to `front` if the tracking wheel is in front of the midline
   //  - ignore this if you aren't using a horizontal tracker
@@ -122,11 +124,7 @@ void competition_initialize() {
  * from where it left off.
  */
 void autonomous() {
-  chassis.pid_targets_reset();                // Resets PID targets to 0
-  chassis.drive_imu_reset();                  // Reset gyro position to 0
-  chassis.drive_sensor_reset();               // Reset drive sensors to 0
-  chassis.odom_xyt_set(0_in, 0_in, 0_deg);    // Set the current position, you can start at a specific position with this
-  chassis.drive_brake_set(MOTOR_BRAKE_HOLD);  // Set motors to hold.  This helps autonomous consistency
+ 
   
   liftPID.target_set(500);
   // You can do stuff here and it'll happen while the lift moves
@@ -261,7 +259,7 @@ void lift_task() {
   pros::delay(2000);  // Set EZ-Template calibrate before this function starts running
   while (true) {
     int pid_output = liftPID.compute(lift.get_position());
-      if(abs(pid_output) < 20)
+      if(abs(pid_output) < 10)
         pid_output = 0;
       set_lift(pid_output);
     pros::delay(ez::util::DELAY_TIME);
@@ -269,39 +267,67 @@ void lift_task() {
 }
 pros::Task Lift_Task(lift_task);  // Create the task, this will cause the function to start running
 
-int liftp = 350;
-int liftn = 0;
+int liftState = 0;
+int clawPower = 0;
 void opcontrol() {
-    //pros::MotorGroup drive({7, -18, 19, -20}); //ports 17 and 19 are normal, ports 18 and 20 are reversed
+  int liftState = 0; // 0: Base, 1: Level 1, 2: Level 2, 3: Level 3
     while (true) {
-        ez_template_extras();
-
-        chassis.opcontrol_tank();  // Tank control
-      
-      if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
-          liftPID.target_set(-700);
+      //Lift Movement
+      // 1. Update the state variable based on buttons
+      if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L1)) {
+          if (liftState < 3) {
+              liftState++; // Move up one level (stops at max height)
+          }
+          //else if (liftState == 3) {
+          //    liftState = 0; // Reset to base if already at max height
+          //}
       }
-      else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
-        liftPID.target_set(0);
+      else if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2)) {
+          if (liftState > 0) {
+              liftState--; // Move down one level (stops at base)
+          }
+      }
+      else if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B)) {
+          liftState = 0; // Quick drop to base
       }
 
+      // 2. Apply the PID target based ONLY on the current state
+      if (liftState == 0) {
+          liftPID.target_set(0);      // Base position
+      } 
+      else if (liftState == 1) {
+          liftPID.target_set(-500);   // Level 1
+      } 
+      else if (liftState == 2) {
+          liftPID.target_set(-1000);  // Level 2
+      } 
+      else if (liftState == 3) {
+          liftPID.target_set(-1500);  // Level 3
+      }
+      //Claw Movement
+      if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) {
+        clawPower = 127; // Snap shut at max power
+      }
+      else if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R2)) {
+        clawPower = -127;   // Stop motor (let the ratchet hold, or drop piece)
+      }
 
-      
+      // The Ramp-Down part of the claw
+      if (clawPower > 40) {
+          clawPower -= 0.1;
+      }
+      else if (clawPower < -40) {
+          clawPower += 1;
+      }
+      else if (clawPower >= -40 and clawPower < 0) {
+          clawPower = 0;
+      }
 
-
+      // Actually moving the motor
+      claw.move(clawPower);
 
       pros::lcd::set_text(4, "Lift Position: " + std::to_string(lift.get_position()));
-      pros::lcd::set_text(5, "Lift Target: " + std::to_string(liftPID.compute(lift.get_position())));
-//manual moving (not wanted now)
-        //if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L1)) {
-            //lift.move(75); //lift up at max power
-        //}
-        //else if (master.get_digital(pros::E_CONTROLLER_DIGITAL_L2)) {
-            //lift.move(-75); //lift down at max power
-        //}
-        //else {
-            //lift.move(0); //stop lift
-        //}
-        pros::delay(20);
+      pros::lcd::set_text(5, "Lift Target: " + std::to_string(liftPID.target_get()));
+      pros::delay(20);
     }
 }

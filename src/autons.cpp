@@ -313,6 +313,34 @@ void odom_boomerang_injected_pure_pursuit_example() {
   chassis.pid_wait();
 }
 
+void override_rush_auton() {
+    // 1. Prepare to grab
+    liftPID.target_set(0); // Ensure lift is at base
+    pros::delay(300);      
+
+    // 2. Rush forward to the center line
+    chassis.pid_drive_set(24_in, DRIVE_SPEED, true); 
+    chassis.pid_wait(); 
+
+    // 3. Clamp down on the Cup/Pin
+    claw.move(127);
+    pros::delay(400); // Wait for ratchet to bite
+    claw.move(20);    // Drop to hold power
+
+    // 4. MULTITASK: Lift to Level 1 and drive back to alliance side simultaneously
+    liftPID.target_set(-500); 
+    chassis.pid_drive_set(-24_in, DRIVE_SPEED, true); 
+    
+    chassis.pid_wait(); // Waits for the drive to finish
+    lift_wait();        // Waits for the lift to finish (if it hasn't already)
+
+    // 5. Score the piece
+    claw.move(-50);
+    pros::delay(300);
+    claw.move(0);
+}
+
+
 ///
 // Calculate the offsets of your tracking wheels
 ///
