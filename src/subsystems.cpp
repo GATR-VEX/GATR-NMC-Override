@@ -198,7 +198,7 @@ void manualTilt() {
 //Flipper control systems
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void flipperControl() {
-  if(master.get_digital(DIGITAL_B)) {
+  if(master.get_digital(DIGITAL_A)) {
     flipper.move(127); //Spin Flipper
   } else {
     flipper.move(0); //Stops Flipper

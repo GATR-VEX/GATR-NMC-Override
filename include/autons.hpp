@@ -3,6 +3,10 @@
 
 void default_constants();
 
+
+void low_Score();
+void high_Score();
+
 void drive_example();
 void turn_example();
 void drive_and_turn();

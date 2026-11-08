@@ -376,6 +376,153 @@ void measure_offsets() {
 // . . .
 // Make your own autonomous functions here!
 // . . .
+
+//Low Auton
+  // ---- Tunables (placeholders: measure and adjust) ----
+static constexpr double LIFT_GOAL = 50;  // lift encoder position to raise to (valid range is 20-1750)
+static constexpr double LIFT_CONE1 = 400;  // lift encoder position to raise to (valid range is 20-1750)
+ 
+// ---- Helpers ----
+ 
+// Claw: true = clamped, false = released (matches grabMacro / scoreMacro)
+static void claw(bool closed, int settle_ms = 300) {
+  piston.set(closed);
+  pros::delay(settle_ms);
+}
+ 
+// Moves the lift through your lift PID task (keeps your height limits and slow zones).
+// wait = false lets the robot drive or turn while the lift moves.
+static void lift_to(double target, bool wait = true) {
+  liftPIDController.target_set(target);
+  if (wait) waitForLift();
+}
+ 
+// Relative flipper move that waits until it arrives (or times out)
+static void flipper_rotate(double motor_degrees, int timeout_ms = 1500) {
+  double target = flipper.get_position() + motor_degrees;
+  flipper.move_relative(motor_degrees, 127);
+  int start = pros::millis();
+  while (fabs(flipper.get_position() - target) > 5 && pros::millis() - start < timeout_ms) {
+    pros::delay(10);
+  }
+}
+
+static void wrist_to(double target) {
+  wristPIDController.target_set(target);
+}
+ 
+///
+// Low side auto
+// Headings are absolute (IMU zeroed at start). Negative = left / counter-clockwise.
+//   start 0  ->  -5  ->  -50  ->  -240
+///
+void low_Score() {
+  claw(true, 0);  // make sure the preload is clamped (no effect if it already is)
+ 
+  // 1) Flipper rotates 2 flips
+  flipper.move_absolute(1500, 127);
+  pros::delay(600);
+  wrist_to(230);
+ 
+  // 2) Turn left 5 degrees, then drive forward 3 in while the lift rises
+  chassis.pid_turn_set(-30_deg, TURN_SPEED);
+  chassis.pid_wait();
+ 
+  lift_to(LIFT_GOAL, false);  // replaces lift.move(100), which the lift PID task would overwrite
+  chassis.pid_drive_set(12_in, DRIVE_SPEED);
+  chassis.pid_wait();
+  waitForLift();  // this section is finished once both the drive and the lift are done
+ 
+  claw(false);  // release the pin
+ 
+  // 3) Back up while rotating left 45 degrees (reverse swing: left side reverses, pivots on the right side)
+  wrist_to(345);
+  lift_to(LIFT_GOAL + 20);
+  pros::delay(75);
+  chassis.pid_drive_set(-4.75_in, DRIVE_SPEED);
+  chassis.pid_wait();
+  chassis.pid_swing_set(ez::LEFT_SWING, -76_deg, SWING_SPEED, 0);
+  chassis.pid_wait();
+ 
+  // 4) Drive forward 15 in, then grab the pin
+  lift_to(20);
+  chassis.pid_drive_set(50.25_in, DRIVE_SPEED, false);
+  chassis.pid_wait();
+  grabMacro();
+ 
+  // 5) Back up 2 in, turn left 190 degrees, drive forward 15 in, release
+  chassis.pid_drive_set(-4_in, DRIVE_SPEED);
+  chassis.pid_wait();
+ 
+  // ez::ccw forces the left turn. Your default "shortest" behavior would turn right 170 degrees instead.
+  chassis.pid_turn_set(87_deg, TURN_SPEED, ez::ccw);
+  chassis.pid_wait();
+ 
+  chassis.pid_drive_set(28_in, DRIVE_SPEED, false);
+  lift_to(LIFT_CONE1);
+  chassis.pid_wait();
+
+ 
+  claw(false);  // release
+  chassis.pid_drive_set(-3_in, DRIVE_SPEED, true);
+  pros::delay(1000);
+}
+
+
+//High Auton
+void high_Score(){
+  claw(true, 0);  // make sure the preload is clamped (no effect if it already is)
+ 
+  // 1) Flipper rotates 2 flips
+  flipper.move_absolute(1500, 127);
+  pros::delay(600);
+  wrist_to(230);
+ 
+  // 2) Turn left 5 degrees, then drive forward 3 in while the lift rises
+  chassis.pid_turn_set(-30_deg, TURN_SPEED);
+  chassis.pid_wait();
+ 
+  lift_to(LIFT_GOAL, false);  // replaces lift.move(100), which the lift PID task would overwrite
+  chassis.pid_drive_set(12_in, DRIVE_SPEED);
+  chassis.pid_wait();
+  waitForLift();  // this section is finished once both the drive and the lift are done
+ 
+  claw(false);  // release the pin
+ 
+  // 3) Back up while rotating left 45 degrees (reverse swing: left side reverses, pivots on the right side)
+  wrist_to(345);
+  chassis.pid_drive_set(-4.75_in, DRIVE_SPEED);
+  chassis.pid_wait();
+  chassis.pid_swing_set(ez::LEFT_SWING, -76_deg, SWING_SPEED, 0);
+  chassis.pid_wait();
+ 
+  // 4) Drive forward 15 in, then grab the pin
+  lift_to(20);
+  chassis.pid_drive_set(50.25_in, DRIVE_SPEED, false);
+  chassis.pid_wait();
+  grabMacro();
+ 
+  // 5) Back up 2 in, turn left 190 degrees, drive forward 15 in, release
+  chassis.pid_drive_set(-4_in, DRIVE_SPEED);
+  chassis.pid_wait();
+ 
+  // ez::ccw forces the left turn. Your default "shortest" behavior would turn right 170 degrees instead.
+  chassis.pid_turn_set(87_deg, TURN_SPEED, ez::ccw);
+  chassis.pid_wait();
+ 
+  chassis.pid_drive_set(28_in, DRIVE_SPEED, false);
+  lift_to(LIFT_CONE1);
+  chassis.pid_wait();
+
+ 
+  claw(false);  // release
+  chassis.pid_drive_set(-3_in, DRIVE_SPEED, true);
+  pros::delay(1000);
+}
+
+
+
+
 //lift pid
 void set_lift(int liftpower){
   lift.move(liftpower);
