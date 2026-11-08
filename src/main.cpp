@@ -125,7 +125,7 @@ void initialize() {
   liftPID.exit_condition_set(80, 50, 300, 150, 500, 500);
   claw.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
   dr4b.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-  dr4b.tare_position();
+  dr4b.tare_position(); //sets the lift's motor to its zero position
 }
 
 /**

@@ -419,9 +419,27 @@ void my_auton() {
   chassis.pid_turn_set(90_deg, TURN_SPEED);
   chassis.pid_wait();
 }
+
 void left_side() {
+  claw.move_relative(1, -127);
+  chassis.pid_wait();
+  chassis.pid_drive_set(50_in, DRIVE_SPEED); //be less than 72 becuause inerital sensor is in the middle
+  async_lift(380); //lifting to position A
+  chassis.pid_wait(); //necessary to wait to it reaches its target _
+  claw.move_relative(-64, -127); //open claw - backward moves claw //-64 degrees - claw open, 1 claw closes 
+  chassis.pid_wait(); 
+  chassis.pid_drive_set(-50_in, DRIVE_SPEED);
+  chassis.pid_wait_quick_chain();
+  chassis.pid_turn_set(-90_deg, TURN_SPEED);
+  chassis.pid_wait_quick_chain();
+  chassis.pid_drive_set(72_in, DRIVE_SPEED);
+  chassis.pid_wait();
+  
+  //async_lift
+
 
 }
+
 void right_side() {
 
 }
