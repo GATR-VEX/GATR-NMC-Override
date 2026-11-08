@@ -340,7 +340,71 @@ void override_rush_auton() {
     claw.move(0);
 }
 
+// LEFT SIDE AUTON
+void left_side_auton() {
+    // 1. You start with a preload in the claw. Lift it up to Level 1.
+    claw.move(20); // Keep tension on preload
+    liftPID.target_set(-428);
+    lift_wait();
 
+    // 2. Drive forward a few inches to score the preload in your zone
+    chassis.pid_drive_set(8_in, 90);
+    chassis.pid_wait();
+    claw.move(-60); // Spit out preload ( can change it to bring down instead)
+    pros::delay(300);
+
+    // 3. Drop lift and backup to prepare for center rush
+    liftPID.target_set(0);
+    chassis.pid_drive_set(-8_in, 90);
+    chassis.pid_wait();
+
+    // 4. Turn toward the center line (Left side needs a specific angle)
+    chassis.pid_turn_set(45_deg, 90);
+    chassis.pid_wait();
+
+    // 5. Rush center with intake running
+    claw.move(127);
+    chassis.pid_drive_set(36_in, 110, true); // Slew enabled for sprint
+    chassis.pid_wait();
+
+    // 6. Retreat back to your alliance side with the new piece
+    claw.move(20); // Hold piece
+    chassis.pid_drive_set(-36_in, 110, true);
+    chassis.pid_wait();
+}
+
+// RIGHT SIDE AUTON
+void right_side_auton() {
+    // 1. Lift preload
+    claw.move(20); 
+    liftPID.target_set(-428);
+    lift_wait();
+
+    // 2. Score preload
+    chassis.pid_drive_set(8_in, 90);
+    chassis.pid_wait();
+    claw.move(-60); 
+    pros::delay(300);
+
+    // 3. Reset
+    liftPID.target_set(0);
+    chassis.pid_drive_set(-8_in, 90);
+    chassis.pid_wait();
+
+    // 4. Turn toward the center line (Right side angle is inverted)
+    chassis.pid_turn_set(-45_deg, 90); // Negative turns left
+    chassis.pid_wait();
+
+    // 5. Rush center
+    claw.move(127);
+    chassis.pid_drive_set(36_in, 110, true);
+    chassis.pid_wait();
+    
+    // 6. Retreat
+    claw.move(20);
+    chassis.pid_drive_set(-36_in, 110, true);
+    chassis.pid_wait();
+}
 ///
 // Calculate the offsets of your tracking wheels
 ///

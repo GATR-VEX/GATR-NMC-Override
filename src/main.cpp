@@ -1,5 +1,6 @@
 #include "main.h"
 #include "subsystems.hpp"
+#include "autons.cpp"
 /////
 // For installation, upgrading, documentations, and tutorials, check out our website!
 // https://ez-robotics.github.io/EZ-Template/
@@ -82,6 +83,8 @@ void initialize() {
       {"Boomerang\n\nGo to (0, 24, 45) then come back to (0, 0, 0)", odom_boomerang_example},
       {"Boomerang Pure Pursuit\n\nGo to (0, 24, 45) on the way to (24, 24) then come back to (0, 0, 0)", odom_boomerang_injected_pure_pursuit_example},
       {"Measure Offsets\n\nThis will turn the robot a bunch of times and calculate your offsets for your tracking wheels.", measure_offsets},
+      {"Left Side\n\nScore the preload and rush the center", left_side_auton},
+      {"Right Side\n\nScore the preload and rush the center", right_side_auton}
   });
 
   // Initialize chassis and auton selector
@@ -280,6 +283,9 @@ void opcontrol() {
       int forward = master.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y) * speed_mult;
       int turn = master.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X) * speed_mult;
         
+      // Send the math directly to the left and right motors
+      chassis.drive_set(forward + turn, forward - turn);
+      
       // Send the math directly to the left and right motors
       chassis.drive_set(forward + turn, forward - turn);
       //Lift Movement
