@@ -1,7 +1,6 @@
 #include "main.h"
 #include "subsystems.hpp"
-#include "autons.cpp"
-#
+#include "autons.hpp"
 /////
 // For installation, upgrading, documentations, and tutorials, check out our website!
 // https://ez-robotics.github.io/EZ-Template/
@@ -84,8 +83,8 @@ void initialize() {
       {"Boomerang\n\nGo to (0, 24, 45) then come back to (0, 0, 0)", odom_boomerang_example},
       {"Boomerang Pure Pursuit\n\nGo to (0, 24, 45) on the way to (24, 24) then come back to (0, 0, 0)", odom_boomerang_injected_pure_pursuit_example},
       {"Measure Offsets\n\nThis will turn the robot a bunch of times and calculate your offsets for your tracking wheels.", measure_offsets},
-      {"Left Side\n\nScore the preload and rush the center", left_side_auton},
-      {"Right Side\n\nScore the preload and rush the center", right_side_auton}
+      {"Left Side\n\nScore the preload", left_side_auton},
+      {"Right Side\n\nScore the preload", right_side_auton}
   });
 
   // Initialize chassis and auton selector
@@ -129,28 +128,13 @@ void competition_initialize() {
  */
 void autonomous() {
  
-  
-  liftPID.target_set(500);
-  // You can do stuff here and it'll happen while the lift moves
-  lift_wait();  // Wait for the lift to reach its target
+  chassis.pid_targets_reset();                // Resets PID targets to 0
+  chassis.drive_imu_reset();                  // Reset gyro position to 0
+  chassis.drive_sensor_reset();               // Reset drive sensors to 0
+  chassis.odom_xyt_set(0_in, 0_in, 0_deg);    // Set the current position
+  chassis.drive_brake_set(MOTOR_BRAKE_HOLD);  // Set motors to hold
 
-  pros::delay(1000);
-
-  liftPID.target_set(0);
-  // You can do stuff here and it'll happen while the lift moves
-  lift_wait();  // Wait for the lift to reach its target
-  /*
-  Odometry and Pure Pursuit are not magic
-
-  It is possible to get perfectly consistent results without tracking wheels,
-  but it is also possible to have extremely inconsistent results without tracking wheels.
-  When you don't use tracking wheels, you need to:
-   - avoid wheel slip
-   - avoid wheelies
-   - avoid throwing momentum around (super harsh turns, like in the example below)
-  You can do cool curved motions, but you have to give your robot the best chance
-  to be consistent
-  */
+  // Immediately call the selected auton from the brain screen 
 
   ez::as::auton_selector.selected_auton_call();  // Calls selected auton from autonomous selector
 }
