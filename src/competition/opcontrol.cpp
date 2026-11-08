@@ -10,6 +10,9 @@
 #include "constants.hpp"
 
 #include <algorithm>
+#include <cerrno>
+#include <cstdio>
+#include <string>
 
 using utilities::Logger;
 
@@ -78,7 +81,7 @@ namespace competition {
 		secondary.up().on_true(superstructure::next_node);
 		secondary.down().on_true(superstructure::previous_node);
 		secondary.r1().on_true(superstructure::increase_stack);
-		secondary.r1().on_true(superstructure::decrease_stack);
+		secondary.l1().on_true(superstructure::decrease_stack);
 
         utilities::Trigger tipping(globals::bindings, [tipped_since = std::uint32_t{0}, was_tipped = false]() mutable {
             const double pitch = globals::imu.get_roll();

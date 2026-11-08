@@ -56,10 +56,13 @@ namespace superstructure {
 		switch (selected_node) {
 			case Node::ALLIANCE:
 				selected_node = Node::NEUTRAL;
+				break;
 			case Node::NEUTRAL:
 				selected_node = Node::CENTER;
+				break;
 			case Node::CENTER:
 				selected_node = Node::ALLIANCE;
+				break;
 		}
 	}
 
@@ -67,10 +70,13 @@ namespace superstructure {
 		switch (selected_node) {
 			case Node::ALLIANCE:
 				selected_node = Node::CENTER;
+				break;
 			case Node::NEUTRAL:
 				selected_node = Node::ALLIANCE;
+				break;
 			case Node::CENTER:
 				selected_node = Node::NEUTRAL;
+				break;
 		}
 	}
 
@@ -117,10 +123,10 @@ namespace superstructure {
 
 	void write_display(utilities::Controller& controller, int seconds_left) {
         char node[16];
-        std::snprintf(node, sizeof(node), "Node: %s", get_node_name());
+		std::snprintf(node, sizeof(node), "N: %s", get_node_name());
 
-        controller.set_line(0, "%-15s %3d", node, seconds_left);
-        controller.set_line(1, "Stack height: %.1f", get_stack_height());
-        controller.set_line(2, "Lift height: %5.1f", lift::get_current_height());
+		controller.set_line(0, "%-11s%4d", node, seconds_left);
+		controller.set_line(1, "Stack: %.1f", get_stack_height());
+		controller.set_line(2, "Lift: %5.1f in", lift::get_current_height());
     }
 }

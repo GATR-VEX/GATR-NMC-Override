@@ -206,22 +206,10 @@ namespace utilities {
 		wanted_lines[line] = text;
 	}
 
-	void Controller::update_display() {
+		void Controller::update_display() {
 		const std::uint32_t now = pros::millis();
 		if (now - last_display_ms < SCREEN_UPDATE_MS) return;
 
-		if (clear_pending) {
-			last_display_ms = now;
-
-			if (controller.clear() == 1) {
-				clear_pending = false;
-				line_sent.fill(false);
-				next_line = 0;
-			}
-
-			return;
-		}
-        
 		std::size_t line_to_send = SCREEN_LINES;
 
 		for (std::size_t i = 0; i < SCREEN_LINES; ++i) {
@@ -242,9 +230,15 @@ namespace utilities {
 
 		last_display_ms = now;
 
-		if (controller.set_text(static_cast<std::uint8_t>(line_to_send), 0, wanted_lines[line_to_send]) != 1) {
-			return;
+		const std::int32_t result = controller.set_text(static_cast<std::uint8_t>(line_to_send), 0, wanted_lines[line_to_send]);
+
+		// TEMPORARY diagnostics: one line per second with what happened.
+		if (result == 1) ++sends_ok; else ++sends_failed;
+		if (now - last_report_ms >= 1000) {
+			std::printf("display: ok=%d failed=%d last_errno=%d line%d=\"%s\"\n", sends_ok, sends_failed, result == 1 ? 0 : errno, static_cast<int>(line_to_send), wanted_lines[line_to_send].c_str()); last_report_ms = now;
 		}
+
+		if (result != 1) return;
 
 		sent_lines[line_to_send] = wanted_lines[line_to_send];
 		line_sent[line_to_send] = true;
@@ -254,7 +248,7 @@ namespace utilities {
 	}
 
 	void Controller::redraw_display() {
-		clear_pending = true;
+		line_sent.fill(false);
 	}
 
     pros::Controller &Controller::raw() {

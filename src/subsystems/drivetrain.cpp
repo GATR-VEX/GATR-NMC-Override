@@ -130,9 +130,7 @@ namespace drivetrain {
         globals::chassis.opcontrol_speed_max_set(127);
         globals::chassis.odom_enable(true);
 
-        // Joystick curve adjustment buttons
-        globals::chassis.opcontrol_curve_buttons_left_set(pros::E_CONTROLLER_DIGITAL_LEFT, pros::E_CONTROLLER_DIGITAL_RIGHT);
-        globals::chassis.opcontrol_curve_buttons_right_set(pros::E_CONTROLLER_DIGITAL_Y, pros::E_CONTROLLER_DIGITAL_A);
+        globals::chassis.opcontrol_curve_buttons_toggle(false);
 
         // Configure autonomous PID constants.
         default_constants();
