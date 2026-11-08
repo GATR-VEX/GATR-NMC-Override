@@ -12,7 +12,7 @@
 // With a 100 RPM red motor and 1:3 gear ratio:
 // 1 full arm rotation (360°) = 3 motor revolutions = 1080 motor degrees.
 // A typical DR4B arm swings ~60-80 degrees:
-const int BASE_HEIGHT = 200;       // Fully lowered / resting height
+const int BASE_HEIGHT = 50;       // Fully lowered / resting height
 const int HEIGHT_A    = 380;     // Position 1
 const int HEIGHT_B    = 560;     // Position 2
 
