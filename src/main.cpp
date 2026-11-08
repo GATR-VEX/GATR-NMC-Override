@@ -265,7 +265,7 @@ void opcontrol() {
     // chassis.opcontrol_arcade_flipped(ez::SPLIT);    // Flipped split arcade
     // chassis.opcontrol_arcade_flipped(ez::SINGLE);   // Flipped single arcade
 
-    piston.button_toggle(master.get_digital(pros::E_CONTROLLER_DIGITAL_X)); //Manual claw control
+    piston.button_toggle(master.get_digital(pros::E_CONTROLLER_DIGITAL_RIGHT)); //Manual claw control
 
     manualTilt(); //Manual tilt control using PID
     manualLift(); //"Manual" lift control using PID with controller inputs

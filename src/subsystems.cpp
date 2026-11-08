@@ -3,7 +3,7 @@
 //Hardware definitions
 pros::Controller master(pros::E_CONTROLLER_MASTER);
 
-pros::MotorGroup lift({17, -13}, pros::v5::MotorGears::blue); //Lift {L,R}
+pros::MotorGroup lift({17, -13, 6, -5}, pros::v5::MotorGears::blue); //Lift {L,R,SL,SR}
 pros::Motor flipper({15}); //Flipper
 pros::Motor tilt(20); //Wrist motor
 //pros::MotorGroup driveL({19,20}); //Left {F,B}
@@ -12,8 +12,9 @@ pros::Motor tilt(20); //Wrist motor
 ez::Piston piston('H');
 
 pros::Distance clawDistance(14); //Distance sensor under claw for grabbing
+pros::IMU imu(1);
 
-bool manualTiltEnabled = false;
+bool manualTiltEnabled = true;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Drivetrain control systems & config
@@ -25,7 +26,7 @@ ez::Drive chassis(
     {-18, -19},  // Left Chassis Ports Front/Back(negative port will reverse it!)
     {12, 11},  // Right Chassis Ports Front/Back(negative port will reverse it!)
 
-    21,      // IMU Port
+    1,      // IMU Port
     3.25,   // Wheel Diameter (Remember, 4" wheels without screw holes are actually 4.125!)
     200.0 // Wheel RPM = cartridge * (motor gear / wheel gear)
 );  
@@ -46,7 +47,7 @@ ez::Drive chassis(
 //Quick lift height initializer to find and set 0; do NOT run in another while with other functions because it has its own while
 void liftInit() {
   int startTime = pros::millis();
-  lift.move(20); //rotates lift until significant power is drawn (string is taught)
+  lift.move(10); //rotates lift until significant power is drawn (string is taught)
   while ((lift.get_power(0) + lift.get_power(1))/2 < 0.5) {
     if (pros::millis() - startTime > 2000) {
       lift.move(0);
@@ -68,10 +69,10 @@ int lift_speed_limit(double limit_distance, double slow_zone, double min_speed) 
 //Cascade lift controls
 
 constexpr double LIFT_MIN   = 20;      // bottom limit
-constexpr double LIFT_MAX   = 1820;   // top limit
+constexpr double LIFT_MAX   = 1750;   // top limit
 constexpr double SLOW_ZONE  = 250;    // distance from each end where slowing begins
 constexpr int    MIN_SPEED  = 20;     // Speed in slow zone
-constexpr int    RAMP_STEP  = 10;     // change per loop; lower = smoother
+constexpr int    RAMP_STEP  = 15;     // change per loop; lower = smoother
 
 void liftControl(int target_voltage) {
 
@@ -177,13 +178,19 @@ void wristPIDTask_fn(void* param) {
 }
 
 void manualTilt() {
-  static double manualTiltTarget = 0;
+  static double manualTiltTarget = 345;
+  constexpr double TILT_INCREMENT = 14; //runs at ~100Hz
+  
   if (manualTiltEnabled) {
-    if (master.get_digital(DIGITAL_L1)) {manualTiltTarget = 345; wristPIDController.target_set(manualTiltTarget);} //Pre-grab position (up all the way)
-    else if (master.get_digital(DIGITAL_RIGHT)) {manualTiltTarget = 200; wristPIDController.target_set(manualTiltTarget);} //Scoring Position (level)
-    else if (master.get_digital(DIGITAL_Y)) {manualTiltTarget = 240; wristPIDController.target_set(manualTiltTarget);} //Up Position 
-    else if (master.get_digital(DIGITAL_LEFT)) {manualTiltTarget = 125; wristPIDController.target_set(manualTiltTarget);} //Cone Position (angled down)
-    manualTiltTarget = std::clamp<double>(10, 345, manualTiltTarget);
+    if (master.get_digital(DIGITAL_L1)) {
+      manualTiltTarget = std::min(345.0, manualTiltTarget + TILT_INCREMENT);
+      wristPIDController.target_set(manualTiltTarget);
+    } //Continuous up
+    else if (master.get_digital(DIGITAL_L2)) {
+      manualTiltTarget = std::max(20.0, manualTiltTarget - 0.6*TILT_INCREMENT);
+      wristPIDController.target_set(manualTiltTarget);} //Continuous down
+    //else if (master.get_digital(DIGITAL_Y)) {manualTiltTarget = 240; wristPIDController.target_set(manualTiltTarget);} //Up Position 
+    //else if (master.get_digital(DIGITAL_LEFT)) {manualTiltTarget = 125; wristPIDController.target_set(manualTiltTarget);} //Cone Position (angled down)
   }
 }
 
@@ -206,13 +213,13 @@ void flipperControl() {
 //(**not tested yet) Simple grabbing macro to tilt wrist down onto pin and grab shortly after
 void grabMacro() {
   manualTiltEnabled = false;
-  wristPIDController.target_set(200);
+  wristPIDController.target_set(190);
   while (tilt.get_position() > 205) { //clamps once wrist is at desired angle
     pros::delay(20);
   } 
   piston.set(true);
-  pros::delay(200);
-  wristPIDController.target_set(240);
+  pros::delay(300);
+  wristPIDController.target_set(245);
   manualTiltEnabled = true;
 }
 
@@ -256,7 +263,7 @@ void scoreMacro() {
 void macroTask_fn(void* param) {
   while (true) {
     
-    if (master.get_digital(DIGITAL_B)) {grabMacro();}
+    if (master.get_digital(DIGITAL_Y) && manualTiltEnabled) {grabMacro();}
     
     pros::delay(ez::util::DELAY_TIME);
   }
