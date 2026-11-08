@@ -64,10 +64,10 @@ namespace constants {
     }
 
     namespace superstructure {
-        inline constexpr std::size_t STACK_POSITIONS = 9;
+        inline constexpr std::size_t STACK_POSITIONS = 10;
 
-		inline constexpr std::array<double, STACK_POSITIONS> ALLIANCE_NODE_HEIGHTS = {17.5, 23, 25.5, 28.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-		inline constexpr std::array<double, STACK_POSITIONS> NEUTRAL_NODE_HEIGHTS = {21.0, 27.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-		inline constexpr std::array<double, STACK_POSITIONS> CENTER_NODE_HEIGHTS = {24.25, 30.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+		inline constexpr std::array<double, STACK_POSITIONS> ALLIANCE_NODE_HEIGHTS = {17.5, 21.125, 24.0, 28.0, 30.125, 33.0, 35.0, 36.875, 38.25, 39.5};
+		inline constexpr std::array<double, STACK_POSITIONS> NEUTRAL_NODE_HEIGHTS = {20.875, 25.0, 27.875, 30.5, 32.5, 35.0, 36.875, 38.25, 39.0, 45.0};
+		inline constexpr std::array<double, STACK_POSITIONS> CENTER_NODE_HEIGHTS = {24.25, 27.5, 30.0, 32.75, 34.25, 36.5, 38.0, 40.25, 40.25, 40.25};
     }
 }

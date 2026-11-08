@@ -125,6 +125,8 @@ namespace competition {
             superstructure::write_display(globals::secondary, seconds_left());
             globals::secondary.update_display();
 
+			ez_template_extras();
+
             pros::delay(ez::util::DELAY_TIME);
         }
     }
