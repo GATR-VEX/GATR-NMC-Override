@@ -12,8 +12,8 @@ ez::Drive chassis(
     // These are your drive motors, the first motor is used for sensing!
     //{-18, 15, -11, -13},  // Left Chassis Ports (negative port will reverse it!)
     //{19, -16, 12, 14},  // Right Chassis Ports (negative port will reverse it!)
-    {16, 17},
-    {-19, -20},
+    {-16, -17},
+    {19, 20},
     21,      // IMU Port
     4.125,   // Wheel Diameter (Remember, 4" wheels without screw holes are actually 4.125!)
     420.0);  // Wheel RPM = cartridge * (motor gear / wheel gear)
@@ -57,7 +57,7 @@ void initialize() {
   // Configure your chassis controls
   chassis.opcontrol_curve_buttons_toggle(true);   // Enables modifying the controller curve with buttons on the joysticks
   chassis.opcontrol_drive_activebrake_set(0.0);   // Sets the active brake kP. We recommend ~2.  0 will disable.
-  chassis.opcontrol_curve_default_set(2.5, 0.0);  // Defaults for curve. If using tank, only the first parameter is used. (Comment this line out if you have an SD card!)
+  chassis.opcontrol_curve_default_set(3.5, 0.0);  // Defaults for curve. If using tank, only the first parameter is used. (Comment this line out if you have an SD card!)
 
   // Set the drive to your own constants from autons.cpp!
   default_constants();
@@ -268,15 +268,24 @@ void lift_task() {
 pros::Task Lift_Task(lift_task);  // Create the task, this will cause the function to start running
 
 int liftState = 0;
+int liftOffset = 0;
 int clawPower = 0;
 bool isHolding = false;
 void opcontrol() {
   int liftState = 0; // 0: Base, 1: Level 1, 2: Level 2, 3: Level 3
     while (true) {
+      ez_template_extras();
+      chassis.opcontrol_arcade_standard(ez::SINGLE);  // better of course
+      double speed_mult = master.get_digital(pros::E_CONTROLLER_DIGITAL_A) ? 0.4 : 1.0;
+      int forward = master.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y) * speed_mult;
+      int turn = master.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X) * speed_mult;
+        
+      // Send the math directly to the left and right motors
+      chassis.drive_set(forward + turn, forward - turn);
       //Lift Movement
       // 1. Update the state variable based on buttons
       if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L1)) {
-          if (liftState < 3) {
+          if (liftState < 4) {
               liftState++; // Move up one level (stops at max height)
           }
           //else if (liftState == 3) {
@@ -305,33 +314,23 @@ void opcontrol() {
       else if (liftState == 3) {
           liftPID.target_set(-1284);  // Level 3
       }
+      else if (liftState == 4) {
+          liftPID.target_set(-1612);  // Level 4
+      }
       if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_DOWN)) {
             // 2 inches = ~78 ticks. Adding 78 moves it closer to 0 (down).
             liftPID.target_set(liftPID.target_get() + 78); 
       }
       //Claw Movement
-      if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)) {
-        clawPower = 127; // bragging the pin / cup
+      if (master.get_digital(pros::E_CONTROLLER_DIGITAL_R1)) {
+        clawPower = 127; // bagging the pin / cup
         isHolding = true;
       }
       else if (master.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R2)) {
-        clawPower = -127;   // Expelliarmus
+        clawPower = -60;   // Expelliarmus
         isHolding = false;
       }
-      else {
-        if (isHolding) {
-          if (clawPower > 20) {
-            clawPower -= 2;
-          } 
-          else {
-            clawPower = 0;
-          }
-        }
-        else {
-          clawPower = 0;
-        }
-      }
-
+      
       // The Ramp-Down part of the claw
       if (clawPower > 40) {
           clawPower -= 1;
@@ -339,7 +338,7 @@ void opcontrol() {
       else if (clawPower < -40) {
           clawPower += 1;
       }
-      else if (clawPower >= -40 and clawPower < 0) {
+      else if (clawPower >= -60 and clawPower < 0) {
           clawPower = 0;
       }
       // Actually moving the motor
